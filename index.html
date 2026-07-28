@@ -1404,6 +1404,40 @@ function replaceUrlState() {
   history.replaceState(null, '', buildUrl());
 }
 
+window.addEventListener('popstate', () => {
+  const { a, b } = parseUrlState();
+  if (a) {
+    const pA = findPilotByNormKey(a);
+    if (pA && (!pilotA || pilotA.normKey !== pA.normKey)) {
+      // Reset both then re-select from URL
+      pilotA = null; pilotB = null;
+      inputA.value = ''; inputA.hidden = false; badgeA.hidden = true; badgeA.innerHTML = '';
+      inputB.value = ''; inputB.hidden = false; badgeB.hidden = true; badgeB.innerHTML = '';
+      inputB.disabled = true; invertBtn.disabled = true;
+      h2hResults.innerHTML = '';
+      document.body.classList.remove('has-results');
+      selectPilotA(pA);
+      if (b) {
+        const pB = findPilotByNormKey(b);
+        if (pB) {
+          selectPilotB(pB);
+          history.replaceState(null, '', buildUrl());
+        }
+      }
+    }
+  } else {
+    // Back to empty state
+    pilotA = null; pilotB = null;
+    inputA.value = ''; inputA.hidden = false; badgeA.hidden = true; badgeA.innerHTML = '';
+    inputB.value = ''; inputB.hidden = false; badgeB.hidden = true; badgeB.innerHTML = '';
+    inputB.disabled = true; invertBtn.disabled = true;
+    h2hResults.innerHTML = '';
+    suggestionsSection.hidden = true;
+    document.title = 'Sqorz Head to Head';
+    document.body.classList.remove('has-results');
+  }
+});
+
 function humanError(e) {
   if (!e) return 'Erreur inconnue.';
   if (e.name === 'AbortError') return 'Annulé.';
@@ -1597,7 +1631,6 @@ function clearPilotA() {
   h2hResults.innerHTML = '';
   document.title = 'Sqorz Head to Head';
   document.body.classList.remove('has-results');
-  replaceUrlState();
   inputA.focus();
 }
 
