@@ -1366,6 +1366,44 @@ const escape = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])
 );
 
+function findPilotByNormKey(key) {
+  if (!pilotsIndex || !key) return null;
+  const seen = new Map();
+  for (const ev of (pilotsIndex.events || [])) {
+    for (const cls of (ev.classes || [])) {
+      for (const c of (cls.competitors || [])) {
+        const k = norm((c.firstName || '') + ' ' + (c.lastName || '')).trim();
+        if (k === key && !seen.has(k)) {
+          seen.set(k, { firstName: c.firstName || '', lastName: c.lastName || '', groupName: c.groupName || '', age: c.age ?? null, normKey: k });
+        }
+      }
+    }
+  }
+  return seen.get(key) ?? null;
+}
+
+function parseUrlState() {
+  const p = new URLSearchParams(location.search);
+  return { a: p.get('a') || '', b: p.get('b') || '' };
+}
+function buildUrl() {
+  const u = new URL(location.href);
+  if (pilotA?.normKey) u.searchParams.set('a', pilotA.normKey);
+  else u.searchParams.delete('a');
+  if (pilotB?.normKey) u.searchParams.set('b', pilotB.normKey);
+  else u.searchParams.delete('b');
+  return u.pathname + (u.search || '');
+}
+function pushUrlState() {
+  const newUrl = buildUrl();
+  const cur = location.pathname + location.search;
+  if (newUrl === cur) history.replaceState(null, '', newUrl);
+  else history.pushState(null, '', newUrl);
+}
+function replaceUrlState() {
+  history.replaceState(null, '', buildUrl());
+}
+
 function humanError(e) {
   if (!e) return 'Erreur inconnue.';
   if (e.name === 'AbortError') return 'Annulé.';
@@ -1559,6 +1597,7 @@ function clearPilotA() {
   h2hResults.innerHTML = '';
   document.title = 'Sqorz Head to Head';
   document.body.classList.remove('has-results');
+  replaceUrlState();
   inputA.focus();
 }
 
@@ -1571,6 +1610,7 @@ function selectPilotB(pilot) {
   badgeB.querySelector('.psb-clear').addEventListener('click', clearPilotB);
   invertBtn.disabled = false;
   computeAndRenderH2H();
+  pushUrlState();
 }
 
 function clearPilotB() {
@@ -1583,6 +1623,7 @@ function clearPilotB() {
   invertBtn.disabled = !(pilotA);
   h2hResults.innerHTML = '';
   document.body.classList.remove('has-results');
+  replaceUrlState();
 }
 
 // ── 3.5 Connexion des autocomplètes + bouton Inverser ──
@@ -1937,7 +1978,19 @@ function renderH2H() {
   });
 }
 
-loadIndex();
+(async () => {
+  await loadIndex();
+  const { a, b } = parseUrlState();
+  if (!a) return;
+  const pA = findPilotByNormKey(a);
+  if (!pA) return;
+  selectPilotA(pA);
+  if (!b) return;
+  const pB = findPilotByNormKey(b);
+  if (!pB) return;
+  selectPilotB(pB);
+  history.replaceState(null, '', buildUrl());
+})();
 })();
 </script>
 
