@@ -1352,6 +1352,9 @@
 'use strict';
 
 const INDEX_URL = 'https://raw.githubusercontent.com/LudSoc/sqorz-stats/main/pilots-index.json';
+const SQORZ_STATS_BASE = window.location.protocol === 'file:'
+  ? '../sqorz_stats/index.html'
+  : 'https://ludsoc.github.io/sqorz-stats/';
 
 // ── Utilitaires ──────────────────────────────────
 const norm = s => (s || '')
@@ -1838,7 +1841,7 @@ function renderH2HHeader(stats) {
 
   return `<div class="h2h-header">
     <div class="h2h-pilot">
-      <div class="hp-name"><a class="sqorz-link" href="../sqorz_stats/index.html?name=${encodeURIComponent(pilotA.firstName + ' ' + pilotA.lastName)}" target="_blank">${nameA}</a></div>
+      <div class="hp-name"><a class="sqorz-link" href="${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotA.firstName + ' ' + pilotA.lastName)}" target="_blank">${nameA}</a></div>
       ${clubA}
       <div class="hp-wins${aLeads?' leader':''}">${stats.winsA}</div>
       <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
@@ -1848,7 +1851,7 @@ function renderH2HHeader(stats) {
       <div class="vs-sub">${stats.total} confrontation(s)<br>${period}</div>
     </div>
     <div class="h2h-pilot right">
-      <div class="hp-name"><a class="sqorz-link" href="../sqorz_stats/index.html?name=${encodeURIComponent(pilotB.firstName + ' ' + pilotB.lastName)}" target="_blank">${nameB}</a></div>
+      <div class="hp-name"><a class="sqorz-link" href="${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotB.firstName + ' ' + pilotB.lastName)}" target="_blank">${nameB}</a></div>
       ${clubB}
       <div class="hp-wins${bLeads?' leader':''}">${stats.winsB}</div>
       <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
