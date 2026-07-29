@@ -1209,14 +1209,20 @@
   }
   .invert-btn:hover { border-color:var(--accent); background:var(--accent-soft) }
   .share-btn {
+    background:transparent; border:1px solid rgba(255,255,255,0.4); color:#fff;
+    border-radius:6px; padding:6px 12px; font-size:0.82rem; cursor:pointer;
+    transition:background .15s; font-family:inherit;
+  }
+  .share-btn:hover { background:rgba(255,255,255,0.15) }
+  .h2h-share-btn {
     display:inline-flex; align-items:center; gap:6px;
     background:none; border:1px solid var(--line); border-radius:99px;
     padding:6px 14px; font-size:13px; color:var(--ink-2); cursor:pointer;
     transition:border-color .12s, background .12s, color .12s;
     font-family:inherit;
   }
-  .share-btn:hover { border-color:var(--accent); background:var(--accent-soft); color:var(--ink) }
-  .share-btn.copied { border-color:var(--good); color:color-mix(in srgb,var(--good) 70%, var(--ink)) }
+  .h2h-share-btn:hover { border-color:var(--accent); background:var(--accent-soft); color:var(--ink) }
+  .h2h-share-btn.copied { border-color:var(--good); color:color-mix(in srgb,var(--good) 70%, var(--ink)) }
   .share-row {
     display:flex; justify-content:flex-end; padding:0 18px 14px; gap:8px;
   }
@@ -1320,6 +1326,7 @@
         </span>
         Sqorz Head to Head
       </div>
+      <button id="shareBtn" class="share-btn" onclick="copyLink()">Copier le lien</button>
       <button type="button" id="themeBtn" class="theme-btn" aria-label="Changer le thème" title="Changer le thème (auto / clair / sombre)"></button>
     </div>
     <a class="hub-back" id="hubBackLink" href="#" aria-label="Retour au Sqorz Hub">← Sqorz Hub</a>
@@ -2067,7 +2074,7 @@ function renderH2H() {
   h2hResults.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
     ${header}
     <div class="share-row">
-      <button type="button" class="share-btn" id="shareBtn" aria-label="Copier le lien de cette comparaison">
+      <button type="button" class="h2h-share-btn" id="h2hShareBtn" aria-label="Copier le lien de cette comparaison">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Partager
       </button>
@@ -2088,7 +2095,7 @@ function renderH2H() {
     });
   });
 
-  const shareBtn = document.getElementById('shareBtn');
+  const shareBtn = document.getElementById('h2hShareBtn');
   if (shareBtn) {
     shareBtn.addEventListener('click', () => {
       const url = location.protocol === 'file:'
@@ -2175,6 +2182,9 @@ function renderH2H() {
       location.reload();
     }
   });
+</script>
+<script>
+function copyLink(){const btn=document.getElementById('shareBtn');const url=window.location.href;const restore=()=>{btn.textContent='Copier le lien'};if(navigator.clipboard){navigator.clipboard.writeText(url).then(()=>{btn.textContent='✓ Lien copié !';setTimeout(restore,2000)})}else{const el=document.createElement('textarea');el.value=url;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);btn.textContent='✓ Lien copié !';setTimeout(restore,2000)}}
 </script>
 </body>
 </html>
