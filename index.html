@@ -1176,12 +1176,7 @@
     letter-spacing:1px;
   }
   .h2h-vs .vs-sub { font-size:11px; color:var(--muted); text-align:center }
-  .hp-profile-link {
-    font-size:11px; color:var(--muted); text-decoration:none;
-    margin-top:4px; transition:color .15s;
-  }
-  .hp-profile-link:hover { color:var(--accent-hi) }
-  .h2h-pilot.right .hp-profile-link { text-align:right }
+
 
   .h2h-table { width:100%; border-collapse:collapse; font-size:13.5px }
   .h2h-table th {
@@ -1891,7 +1886,6 @@ function renderH2HHeader(stats) {
       ${clubA}
       <div class="hp-wins${aLeads?' leader':''}">${stats.winsA}</div>
       <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
-      <a class="hp-profile-link" href="${linkA}" target="_blank" rel="noopener" title="Voir la fiche complète de ${nameA}">Fiche complète ↗</a>
     </div>
     <div class="h2h-vs">
       <div class="vs-label">VS</div>
@@ -1902,7 +1896,6 @@ function renderH2HHeader(stats) {
       ${clubB}
       <div class="hp-wins${bLeads?' leader':''}">${stats.winsB}</div>
       <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
-      <a class="hp-profile-link" href="${linkB}" target="_blank" rel="noopener" title="Voir la fiche complète de ${nameB}">Fiche complète ↗</a>
     </div>
   </div>`;
 }
