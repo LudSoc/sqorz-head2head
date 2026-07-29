@@ -1332,6 +1332,7 @@
   <!-- Carte chargement / statut -->
   <div class="card" id="statusCard" style="padding:18px">
     <div class="status loading" id="statusEl">Chargement des données…</div>
+    <div class="progress" id="progressWrap" hidden><div id="progressBar"></div></div>
     <button id="retryBtn" hidden>Réessayer</button>
   </div>
 
@@ -1527,6 +1528,14 @@ function expandIndex(idx) {
 }
 
 // ── Chargement ───────────────────────────────────
+function setProgress(done, total) {
+  const wrap = document.getElementById('progressWrap');
+  const bar  = document.getElementById('progressBar');
+  if (!total) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  bar.style.width = Math.min(99, Math.round(100 * done / total)) + '%';
+}
+
 async function loadIndex() {
   retryBtn.hidden = true;
   statusEl.className = 'status loading';
@@ -1536,11 +1545,30 @@ async function loadIndex() {
   try {
     const res = await fetch(INDEX_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    pilotsIndex = expandIndex(await res.json());
+    const compressed = !!res.headers.get('Content-Encoding');
+    const rawTotal = parseInt(res.headers.get('Content-Length') || '0', 10);
+    const total = compressed ? 83_000_000 : (rawTotal || 83_000_000);
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      setProgress(received, total);
+      statusEl.textContent = `Chargement… ${(received / 1048576).toFixed(0)} Mo`;
+    }
+    setProgress(0, 0);
+    const allBytes = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) { allBytes.set(chunk, offset); offset += chunk.length; }
+    pilotsIndex = expandIndex(JSON.parse(new TextDecoder().decode(allBytes)));
     statusCard.hidden = true;
     selectionCard.hidden = false;
     inputA.focus();
   } catch (e) {
+    setProgress(0, 0);
     statusEl.className = 'status error';
     statusEl.textContent = 'Impossible de charger les données : ' + humanError(e);
     retryBtn.hidden = false;
