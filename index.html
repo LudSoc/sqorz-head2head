@@ -63,7 +63,7 @@
   }
   :root.dark{
     --bg:#1f262e; --card:#2a3340; --card-soft:#252e3a;
-    --ink:#e4ebf2; --ink-2:#c2ccd8; --muted:#a4afbb;
+    --ink:#e4ebf2; --ink-2:#c2ccd8; --muted:#b8c4d0;
     --line:#3a4250; --line-strong:#4d5666;
     --accent:#9bb5cf; --accent-hi:#b6cce0; --accent-soft:#3a4250;
     --rose:#f4b8cb; --coral:#f4b4a4; --peach:#f5cdac; --apricot:#f5dab0;
@@ -1164,7 +1164,7 @@
   .h2h-pilot .hp-name { font-size:18px; font-weight:800; color:var(--ink) }
   .h2h-pilot .hp-club { font-size:12px; color:var(--muted) }
   .h2h-pilot .hp-wins {
-    font-size:28px; font-weight:900; color:var(--accent);
+    font-size:28px; font-weight:900; color:var(--muted);
     line-height:1;
   }
   .h2h-pilot .hp-wins.leader { color:var(--good) }
@@ -1176,6 +1176,12 @@
     letter-spacing:1px;
   }
   .h2h-vs .vs-sub { font-size:11px; color:var(--muted); text-align:center }
+  .hp-profile-link {
+    font-size:11px; color:var(--muted); text-decoration:none;
+    margin-top:4px; transition:color .15s;
+  }
+  .hp-profile-link:hover { color:var(--accent-hi) }
+  .h2h-pilot.right .hp-profile-link { text-align:right }
 
   .h2h-table { width:100%; border-collapse:collapse; font-size:13.5px }
   .h2h-table th {
@@ -1186,6 +1192,12 @@
   .h2h-table td { padding:10px; border-bottom:1px solid var(--line); vertical-align:middle }
   .h2h-table tr:last-child td { border-bottom:none }
   .h2h-table tr.dnx-row td { color:var(--muted); font-style:italic }
+  .h2h-table tbody tr:focus { outline:none }
+  .h2h-table tbody tr:focus-visible {
+    outline:2px solid var(--accent);
+    outline-offset:-2px;
+    border-radius:4px;
+  }
   .h2h-table .rank-a, .h2h-table .rank-b { font-weight:700; font-variant-numeric:tabular-nums }
   .h2h-table .rank-a.winner { color:var(--good) }
   .h2h-table .rank-b.winner { color:var(--good) }
@@ -1201,6 +1213,18 @@
     transition:border-color .12s, background .12s;
   }
   .invert-btn:hover { border-color:var(--accent); background:var(--accent-soft) }
+  .share-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    background:none; border:1px solid var(--line); border-radius:99px;
+    padding:6px 14px; font-size:13px; color:var(--ink-2); cursor:pointer;
+    transition:border-color .12s, background .12s, color .12s;
+    font-family:inherit;
+  }
+  .share-btn:hover { border-color:var(--accent); background:var(--accent-soft); color:var(--ink) }
+  .share-btn.copied { border-color:var(--good); color:color-mix(in srgb,var(--good) 70%, var(--ink)) }
+  .share-row {
+    display:flex; justify-content:flex-end; padding:0 18px 14px; gap:8px;
+  }
 
   .cat-filter-row {
     display:flex; gap:8px; flex-wrap:wrap; align-items:center;
@@ -1858,22 +1882,27 @@ function renderH2HHeader(stats) {
     ? `${fmtDate(stats.firstDate)} → ${fmtDate(stats.lastDate)}`
     : '—';
 
+  const linkA = `${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotA.firstName + ' ' + pilotA.lastName)}`;
+  const linkB = `${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotB.firstName + ' ' + pilotB.lastName)}`;
+
   return `<div class="h2h-header">
     <div class="h2h-pilot">
-      <div class="hp-name"><a class="sqorz-link" href="${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotA.firstName + ' ' + pilotA.lastName)}" target="_blank">${nameA}</a></div>
+      <div class="hp-name"><a class="sqorz-link" href="${linkA}" target="_blank">${nameA}</a></div>
       ${clubA}
       <div class="hp-wins${aLeads?' leader':''}">${stats.winsA}</div>
       <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
+      <a class="hp-profile-link" href="${linkA}" target="_blank" rel="noopener" title="Voir la fiche complète de ${nameA}">Fiche complète ↗</a>
     </div>
     <div class="h2h-vs">
       <div class="vs-label">VS</div>
       <div class="vs-sub">${stats.total} confrontation(s)<br>${period}</div>
     </div>
     <div class="h2h-pilot right">
-      <div class="hp-name"><a class="sqorz-link" href="${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotB.firstName + ' ' + pilotB.lastName)}" target="_blank">${nameB}</a></div>
+      <div class="hp-name"><a class="sqorz-link" href="${linkB}" target="_blank">${nameB}</a></div>
       ${clubB}
       <div class="hp-wins${bLeads?' leader':''}">${stats.winsB}</div>
       <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
+      <a class="hp-profile-link" href="${linkB}" target="_blank" rel="noopener" title="Voir la fiche complète de ${nameB}">Fiche complète ↗</a>
     </div>
   </div>`;
 }
@@ -1918,7 +1947,7 @@ function renderH2HTable(confrontations) {
       ? `<a class="sqorz-link" href="${eventHref}" target="_blank" rel="noopener">${escape(c.event.eventName || c.event.eventId)}</a>`
       : escape(c.event.eventName || c.event.eventId);
 
-    return `<tr class="${isDnx ? 'dnx-row' : ''}">
+    return `<tr class="${isDnx ? 'dnx-row' : ''}" tabindex="0">
       <td class="ev-date">${fmtDate(c.event.eventDate)}</td>
       <td class="ev-name">${eventName}</td>
       <td class="ev-cat">${escape(c.cls.className || c.cls.perpetualClassCode || '')}</td>
@@ -2016,6 +2045,12 @@ function renderH2H() {
 
   h2hResults.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
     ${header}
+    <div class="share-row">
+      <button type="button" class="share-btn" id="shareBtn" aria-label="Copier le lien de cette comparaison">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Partager
+      </button>
+    </div>
     ${catFilter}
     ${statsCards}
     <div class="section-title" style="padding:0 18px;margin-bottom:0">
@@ -2031,6 +2066,29 @@ function renderH2H() {
       renderH2H();
     });
   });
+
+  const shareBtn = document.getElementById('shareBtn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', () => {
+      const url = location.protocol === 'file:'
+        ? location.href
+        : location.origin + location.pathname + location.search;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          shareBtn.textContent = '✓ Lien copié !';
+          shareBtn.classList.add('copied');
+          setTimeout(() => {
+            shareBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Partager';
+            shareBtn.classList.remove('copied');
+          }, 2000);
+        }).catch(() => {
+          prompt('Copie ce lien :', url);
+        });
+      } else {
+        prompt('Copie ce lien :', url);
+      }
+    });
+  }
 }
 
 (async () => {
