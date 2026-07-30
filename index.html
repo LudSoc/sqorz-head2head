@@ -900,7 +900,7 @@
   .compare-pilots{
     display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;
   }
-  @media(max-width:520px){.compare-pilots{grid-template-columns:1fr}}
+  @media(max-width:640px){.compare-pilots{grid-template-columns:1fr}}
   .compare-pilot{
     display:flex; align-items:center; gap:10px; padding:10px 12px;
     background:var(--card-soft); border-radius:10px; border:1px solid var(--line);
@@ -1292,7 +1292,7 @@
     .h2h-table .ev-cat { display: none }
   }
 
-  @media (max-width:400px) {
+  @media (max-width:480px) {
     .h2h-table th:nth-child(1),
     .h2h-table td:nth-child(1),
     .h2h-table th:nth-child(3),
@@ -1359,8 +1359,8 @@
 
         <!-- VS + Inverser -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:2px">
-          <span style="font-size:15px;font-weight:900;color:var(--muted);letter-spacing:1px">VS</span>
-          <button type="button" class="invert-btn" id="invertBtn" disabled title="Inverser A et B" aria-label="Inverser les pilotes A et B">⇄</button>
+          <span style="font-size:15px;font-weight:900;color:var(--muted);letter-spacing:1px" aria-hidden="true">VS</span>
+          <button type="button" class="invert-btn" id="invertBtn" disabled title="Inverser A et B" aria-label="Inverser les deux pilotes"><span aria-hidden="true">⇄</span></button>
         </div>
 
         <!-- Pilote B -->
@@ -1652,6 +1652,7 @@ function setupAutocomplete(input, dropdown, onSelect, getExcludeKey) {
     if (e.key === 'ArrowDown') { e.preventDefault(); moveFocus(1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); moveFocus(-1); }
     else if (e.key === 'Enter') {
+      if (!dropdown._items || !dropdown._items.length) return;
       const focused = dropdown.querySelector('.ac-item.focused') || dropdown.querySelector('.ac-item');
       if (focused) {
         const idx = +focused.dataset.idx;
@@ -1966,7 +1967,7 @@ function renderH2HTable(confrontations) {
 
     const aWins = !isDnx && c.rankA < c.rankB;
     const bWins = !isDnx && c.rankB < c.rankA;
-    const winIcon = isDnx ? '' : aWins ? '← 🏆' : bWins ? '🏆 →' : '=';
+    const winIcon = isDnx ? '' : aWins ? '<span aria-hidden="true">← 🏆</span>' : bWins ? '<span aria-hidden="true">🏆 →</span>' : '<span aria-hidden="true">=</span>';
 
     const eventHref = c.account?.accountCode
       ? `https://our.sqorz.com/org/${encodeURIComponent(c.account.accountCode)}/event/${encodeURIComponent(c.event.eventId)}${c.cls.perpetualClassCode ? '/class/' + encodeURIComponent(c.cls.perpetualClassCode) : ''}`
@@ -2007,9 +2008,9 @@ function renderCatFilter(categories, activeCat) {
   const pills = [''].concat(categories).map(cat => {
     const label = cat === '' ? 'Toutes' : escape(cat);
     const isActive = cat === activeCat;
-    return `<button type="button" class="cat-pill${isActive?' active':''}" data-cat="${escape(cat)}">${label}</button>`;
+    return `<button type="button" class="cat-pill${isActive?' active':''}" data-cat="${escape(cat)}" aria-pressed="${isActive}">${label}</button>`;
   }).join('');
-  return `<div class="cat-filter-row" id="catFilterRow">${pills}</div>`;
+  return `<div class="cat-filter-row" id="catFilterRow" role="group" aria-label="Filtrer par catégorie">${pills}</div>`;
 }
 
 let allConfrontations = [];
@@ -2037,13 +2038,13 @@ function computeAndRenderH2H() {
       h2hResults.innerHTML = `<div class="card"><div class="empty-state">
         <div class="es-icon">📋</div>
         <div class="es-title">Pas de confrontation dans la même catégorie</div>
-        <div class="es-text">Ces pilotes ont participé aux mêmes événements mais jamais dans la même catégorie.</div>
+        <div class="es-text">Ces pilotes ont participé aux mêmes événements mais jamais dans la même catégorie. Essayez de chercher un autre adversaire.</div>
       </div></div>`;
     } else {
       h2hResults.innerHTML = `<div class="card"><div class="empty-state">
         <div class="es-icon">🏁</div>
         <div class="es-title">Aucune confrontation directe</div>
-        <div class="es-text">Ces deux pilotes n'ont jamais été classés dans la même catégorie lors du même événement.</div>
+        <div class="es-text">Ces deux pilotes ne se sont peut-être pas affrontés dans la même catégorie. Essayez de chercher un autre adversaire pour ce pilote.</div>
       </div></div>`;
     }
     return;
