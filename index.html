@@ -1495,8 +1495,8 @@ function humanError(e) {
 
 function specialLabel(r) {
   if (r == null || r < 100000) return null;
-  if (r >= 103000) return 'DSQ';
-  if (r >= 101000) return 'DNS';
+  if (r >= 103000) return 'DNS';
+  if (r >= 101000) return 'DSQ';
   return 'DNF';
 }
 
