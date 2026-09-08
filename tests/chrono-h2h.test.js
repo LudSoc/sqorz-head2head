@@ -121,6 +121,7 @@ test('renderChronoTable : un tableau par métrique, que les duels chronométrés
   const timeTbl = H.renderChronoTable(confs, H.CHRONO_METRICS[0]);
   assert.ok(timeTbl.includes('34.981') && timeTbl.includes('35.412') && timeTbl.includes('0.431'));
   assert.ok(timeTbl.includes('1 duel'), 'compteur de duels dans le titre');
+  assert.ok(timeTbl.includes('1 à 0'), 'total A à B dans le titre');
   assert.ok(!timeTbl.includes('Club'), 'la course non chronométrée est exclue');
   const hillTbl = H.renderChronoTable(confs, H.CHRONO_METRICS[2]);
   assert.ok(hillTbl.includes('2.601') && hillTbl.includes('2.633'));

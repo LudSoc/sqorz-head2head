@@ -2099,7 +2099,8 @@ function renderH2HTable(confrontations) {
 }
 
 // Tableau des duels chronométrés pour UNE métrique (lignes où les deux pilotes
-// sont chronométrés). Vide ('') si aucun duel — la section n'apparaît pas.
+// sont chronométrés). Titre avec le total (victoires A à B, comme les
+// classements finaux) + nombre de duels. Vide ('') si aucun duel.
 function renderChronoTable(confrontations, metric) {
   const duels = confrontations.filter(c => {
     const a = c.chronoA ? c.chronoA[metric.key] : null;
@@ -2107,6 +2108,12 @@ function renderChronoTable(confrontations, metric) {
     return a != null && b != null;
   });
   if (!duels.length) return '';
+  let winsA = 0, winsB = 0;
+  for (const c of duels) {
+    const a = c.chronoA[metric.key], b = c.chronoB[metric.key];
+    if (a < b) winsA++;
+    else if (b < a) winsB++;
+  }
   const nameA = escape(pilotA.firstName + ' ' + pilotA.lastName);
   const nameB = escape(pilotB.firstName + ' ' + pilotB.lastName);
 
@@ -2125,7 +2132,7 @@ function renderChronoTable(confrontations, metric) {
 
   return `<div class="section-title" style="padding:0 18px;margin-bottom:0">
     ${escape(metric.label)}
-    <span class="meta">${duels.length} duel${duels.length > 1 ? 's' : ''}</span>
+    <span class="meta">${winsA} à ${winsB} · ${duels.length} duel${duels.length > 1 ? 's' : ''}</span>
   </div>
   <div style="overflow-x:auto;padding:0 18px 18px">
     <table class="h2h-table chrono-table">
