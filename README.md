@@ -24,7 +24,7 @@ Compare two BMX Race pilots head-to-head: victories, podiums, win rates, and dir
 
 ### Tech
 
-Single-file HTML/CSS/JS, no framework, no build step. Data from the public [Sqorz API](https://our.sqorz.com) + UEC European races (JSTiming).
+HTML/CSS/JS, no framework, no build step. Shared core (`SqorzCommon`) loaded from sqorz-stats. Data from the public [Sqorz API](https://our.sqorz.com) + UEC European races (JSTiming).
 
 > Community project, not affiliated with Sqorz.
 
@@ -48,6 +48,6 @@ Comparez deux pilotes BMX Race face à face : victoires, podiums, taux de réuss
 
 ### Technique
 
-HTML/CSS/JS en fichier unique, sans framework, sans étape de build. Données issues de l'[API publique Sqorz](https://our.sqorz.com) + courses européennes UEC (JSTiming).
+HTML/CSS/JS, sans framework, sans étape de build. Socle partagé (`SqorzCommon`) chargé depuis sqorz-stats. Données issues de l'[API publique Sqorz](https://our.sqorz.com) + courses européennes UEC (JSTiming).
 
 > Projet communautaire non officiel, non affilié à Sqorz.
