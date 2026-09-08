@@ -28,6 +28,7 @@ function stmt(src, start) {
 const harnessSrc = [
   'const { isNotTimedPhase, num, escape } = __SC;',
   'let pilotA = null, pilotB = null;',
+  "const SQORZ_STATS_BASE = 'https://example.invalid/';",
   stmt(html, 'const CHRONO_METRICS ='),
   stmt(html, 'const fmtChrono ='),
   block(html, 'function bestChrono(details, key) {'),
@@ -39,7 +40,8 @@ const harnessSrc = [
   block(html, 'function renderH2HTable(confrontations) {'),
   block(html, 'function renderChronoTable(confrontations, metric) {'),
   block(html, 'function renderViewSelector(chronoStats, activeView, rankCount) {'),
-].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, renderChronoTable, renderViewSelector, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
+  block(html, 'function renderH2HHeader(stats, viewScore) {'),
+].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, renderChronoTable, renderViewSelector, renderH2HHeader, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
 const H = new Function('__SC', harnessSrc)(SC);
 
 // --- bestChrono : règles d'exclusion ---
@@ -148,6 +150,20 @@ test('renderViewSelector : rangs toujours + métriques avec duels', () => {
 
 test('renderViewSelector : absent sans duel chronométré', () => {
   assert.equal(H.renderViewSelector([], 'rank', 12), '');
+});
+
+// --- en-tête : le total suit le tableau choisi ---
+test('renderH2HHeader : victoires en vue rangs, duels en vue chrono', () => {
+  H.__setPilots(
+    { firstName: 'Alan', lastName: 'A', groupName: 'Club X' },
+    { firstName: 'Benoit', lastName: 'B', groupName: '' });
+  const stats = { winsA: 15, winsB: 13, ties: 0, validCount: 28, total: 28, categories: [], firstDate: '2026-01-01', lastDate: '2026-06-01' };
+  const rankHtml = H.renderH2HHeader(stats, null);
+  assert.ok(rankHtml.includes('>15<') && rankHtml.includes('>13<'), 'total classements 15 à 13');
+  assert.ok(rankHtml.includes('victoire(s)'));
+  const chronoHtml = H.renderH2HHeader(stats, { winsA: 9, winsB: 6, caption: '⏱️ Chrono · 15 duels' });
+  assert.ok(chronoHtml.includes('>9<') && chronoHtml.includes('>6<'), 'total chronos 9 à 6');
+  assert.ok(chronoHtml.includes('15 duels') && !chronoHtml.includes('victoire(s)'));
 });
 
 // --- intégration sur le vrai index UEC (mode chrono du socle) ---

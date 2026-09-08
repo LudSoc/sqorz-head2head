@@ -1991,9 +1991,14 @@ function fmtDate(iso) {
   return `${d}/${m}/${y}`;
 }
 
-function renderH2HHeader(stats) {
-  const aLeads = stats.winsA > stats.winsB;
-  const bLeads = stats.winsB > stats.winsA;
+function renderH2HHeader(stats, viewScore) {
+  // viewScore = null (vue classement : victoires) ou { winsA, winsB, caption }
+  // (vue chrono : duels remportés sur la métrique) — le total suit le tableau choisi.
+  const winsA = viewScore ? viewScore.winsA : stats.winsA;
+  const winsB = viewScore ? viewScore.winsB : stats.winsB;
+  const caption = viewScore ? viewScore.caption : 'victoire(s)';
+  const aLeads = winsA > winsB;
+  const bLeads = winsB > winsA;
   const nameA = escape(pilotA.firstName + ' ' + pilotA.lastName);
   const nameB = escape(pilotB.firstName + ' ' + pilotB.lastName);
   const metaA = [pilotA.groupName, pilotA.age != null ? `${pilotA.age} ans` : null].filter(Boolean).map(escape).join(' · ');
@@ -2011,8 +2016,8 @@ function renderH2HHeader(stats) {
     <div class="h2h-pilot">
       <div class="hp-name"><a class="sqorz-link" href="${linkA}" target="_blank">${nameA}</a></div>
       ${clubA}
-      <div class="hp-wins${aLeads?' leader':''}">${stats.winsA}</div>
-      <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
+      <div class="hp-wins${aLeads?' leader':''}">${winsA}</div>
+      <div style="font-size:12px;color:var(--muted)">${escape(caption)}</div>
     </div>
     <div class="h2h-vs">
       <div class="vs-label">VS</div>
@@ -2021,8 +2026,8 @@ function renderH2HHeader(stats) {
     <div class="h2h-pilot right">
       <div class="hp-name"><a class="sqorz-link" href="${linkB}" target="_blank">${nameB}</a></div>
       ${clubB}
-      <div class="hp-wins${bLeads?' leader':''}">${stats.winsB}</div>
-      <div style="font-size:12px;color:var(--muted)">victoire(s)</div>
+      <div class="hp-wins${bLeads?' leader':''}">${winsB}</div>
+      <div style="font-size:12px;color:var(--muted)">${escape(caption)}</div>
     </div>
   </div>`;
 }
@@ -2237,7 +2242,12 @@ function renderH2H() {
     ? activeChronoView : 'rank';
   activeChronoView = view;
   const catFilter = renderCatFilter(allStats.categories, activeCat);
-  const header = renderH2HHeader(stats);
+  // Le total de l'en-tête suit le tableau choisi (rangs ou métrique chrono).
+  const chronoView = view === 'rank' ? null : chronoStats.find(s => s.key === view);
+  const viewScore = chronoView
+    ? { winsA: chronoView.winsA, winsB: chronoView.winsB, caption: `${chronoView.label} · ${chronoView.duels} duel${chronoView.duels > 1 ? 's' : ''}` }
+    : null;
+  const header = renderH2HHeader(stats, viewScore);
   const statsCards = renderH2HStatsCards(stats);
   const table = renderH2HTable(filtered);
   const viewSelector = renderViewSelector(chronoStats, view, filtered.length);
