@@ -41,7 +41,10 @@ const harnessSrc = [
   block(html, 'function renderChronoTable(confrontations, metric) {'),
   block(html, 'function renderViewSelector(chronoStats, activeView, rankCount) {'),
   block(html, 'function renderH2HHeader(stats, viewScore) {'),
-].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, renderChronoTable, renderViewSelector, renderH2HHeader, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
+  block(html, 'function filterConfrontations(confrontations, cat, year) {'),
+  block(html, 'function confrontationYears(confrontations) {'),
+  block(html, 'function renderYearFilter(years, activeYear) {'),
+].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, renderChronoTable, renderViewSelector, renderH2HHeader, filterConfrontations, confrontationYears, renderYearFilter, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
 const H = new Function('__SC', harnessSrc)(SC);
 
 // --- bestChrono : règles d'exclusion ---
@@ -164,6 +167,38 @@ test('renderH2HHeader : victoires en vue rangs, duels en vue chrono', () => {
   const chronoHtml = H.renderH2HHeader(stats, { winsA: 9, winsB: 6, caption: '⏱️ Chrono · 15 duels' });
   assert.ok(chronoHtml.includes('>9<') && chronoHtml.includes('>6<'), 'total chronos 9 à 6');
   assert.ok(chronoHtml.includes('15 duels') && !chronoHtml.includes('victoire(s)'));
+});
+
+// --- filtre année ---
+const YEAR_CONFS = [
+  { event: { eventDate: '2026-05-10' }, cls: { className: 'U19' }, rankA: 1, rankB: 2 },
+  { event: { eventDate: '2025-06-08' }, cls: { className: 'U19' }, rankA: 3, rankB: 1 },
+  { event: { eventDate: '2025-07-07' }, cls: { className: 'Elite' }, rankA: 2, rankB: 2 },
+  { event: { eventDate: '' }, cls: { className: 'U19' }, rankA: 1, rankB: 5 },
+];
+
+test('filterConfrontations : catégorie + année combinables', () => {
+  assert.equal(H.filterConfrontations(YEAR_CONFS, '', '').length, 4);
+  assert.equal(H.filterConfrontations(YEAR_CONFS, '', '2025').length, 2);
+  assert.equal(H.filterConfrontations(YEAR_CONFS, 'Elite', '').length, 1);
+  assert.equal(H.filterConfrontations(YEAR_CONFS, 'U19', '2025').length, 1);
+  assert.equal(H.filterConfrontations(YEAR_CONFS, '', '2024').length, 0);
+});
+
+test('confrontationYears : années triées desc, sans date ignorée', () => {
+  assert.deepEqual(H.confrontationYears(YEAR_CONFS), ['2026', '2025']);
+  assert.deepEqual(H.confrontationYears([]), []);
+});
+
+test('renderYearFilter : select avec années, masqué si une seule', () => {
+  const out = H.renderYearFilter(['2026', '2025'], '');
+  assert.ok(out.includes('id="yearFilterSel"'), 'select présent');
+  assert.ok(out.includes('<option value="2026">2026</option>'), 'option année');
+  assert.ok(out.includes('<option value="">Toutes années</option>'), 'option toutes');
+  const outSel = H.renderYearFilter(['2026', '2025'], '2025');
+  assert.ok(outSel.includes('<option value="2025" selected>'), 'année active sélectionnée');
+  assert.equal(H.renderYearFilter(['2026'], ''), '', 'masqué si une seule année');
+  assert.equal(H.renderYearFilter([], ''), '', 'masqué sans confrontation');
 });
 
 // --- intégration sur le vrai index UEC (mode chrono du socle) ---

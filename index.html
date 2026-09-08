@@ -1249,6 +1249,14 @@
     background:color-mix(in srgb,var(--accent) 14%,transparent);
     color:var(--ink);
   }
+  .year-filter-row{
+    display:flex; gap:8px; align-items:center;
+    padding:12px 18px 0; font-size:13px; color:var(--muted);
+  }
+  .year-filter-row select{
+    padding:5px 10px; border-radius:10px; font-size:13px; font-weight:600;
+    border:1.5px solid var(--line); background:var(--card-soft); color:var(--ink);
+  }
 
   .empty-state {
     text-align:center; padding:48px 24px; color:var(--muted);
@@ -2166,13 +2174,40 @@ function renderCatFilter(categories, activeCat) {
   return `<div class="cat-filter-row" id="catFilterRow" role="group" aria-label="Filtrer par catégorie">${pills}</div>`;
 }
 
+// Filtre combiné catégorie + année (testé) — utilisé par renderH2H.
+function filterConfrontations(confrontations, cat, year) {
+  return confrontations.filter(c => {
+    if (cat && (c.cls.className || c.cls.perpetualClassCode) !== cat) return false;
+    if (year && !(c.event.eventDate || '').startsWith(year + '-')) return false;
+    return true;
+  });
+}
+function confrontationYears(confrontations) {
+  const set = new Set();
+  for (const c of confrontations) {
+    const y = (c.event.eventDate || '').slice(0, 4);
+    if (/^\d{4}$/.test(y)) set.add(y);
+  }
+  return [...set].sort((a, b) => b.localeCompare(a));
+}
+// Sélecteur d'année (masqué si une seule année — rien à filtrer).
+function renderYearFilter(years, activeYear) {
+  if (years.length <= 1) return '';
+  const opts = [`<option value="">Toutes années</option>`]
+    .concat(years.map(y => `<option value="${y}"${y === activeYear ? ' selected' : ''}>${y}</option>`))
+    .join('');
+  return `<div class="year-filter-row"><label for="yearFilterSel">Année :</label><select id="yearFilterSel">${opts}</select></div>`;
+}
+
 let allConfrontations = [];
 let activeCat = '';
+let activeYear = ''; // filtre année ('') = toutes) — reset à chaque nouvelle comparaison
 let activeChronoView = 'rank'; // tableau affiché : 'rank' ou une clé CHRONO_METRICS
 
 function computeAndRenderH2H() {
   allConfrontations = computeConfrontations(pilotA, pilotB);
   activeCat = '';
+  activeYear = '';
   activeChronoView = 'rank';
 
   if (!allConfrontations.length) {
@@ -2230,9 +2265,7 @@ function renderViewSelector(chronoStats, activeView, rankCount) {
 
 function renderH2H() {
   document.body.classList.add('has-results');
-  const filtered = activeCat
-    ? allConfrontations.filter(c => (c.cls.className || c.cls.perpetualClassCode) === activeCat)
-    : allConfrontations;
+  const filtered = filterConfrontations(allConfrontations, activeCat, activeYear);
 
   const stats = computeH2HStats(filtered);
   const allStats = computeH2HStats(allConfrontations);
@@ -2241,6 +2274,7 @@ function renderH2H() {
   const view = (activeChronoView !== 'rank' && chronoStats.some(s => s.key === activeChronoView))
     ? activeChronoView : 'rank';
   activeChronoView = view;
+  const yearFilter = renderYearFilter(confrontationYears(allConfrontations), activeYear);
   const catFilter = renderCatFilter(allStats.categories, activeCat);
   // Le total de l'en-tête suit le tableau choisi (rangs ou métrique chrono).
   const chronoView = view === 'rank' ? null : chronoStats.find(s => s.key === view);
@@ -2267,11 +2301,17 @@ function renderH2H() {
         Partager
       </button>
     </div>
+    ${yearFilter}
     ${catFilter}
     ${statsCards}
     ${viewSelector}
     ${detailBlock}
   </div>`;
+
+  document.getElementById('yearFilterSel')?.addEventListener('change', e => {
+    activeYear = e.target.value;
+    renderH2H();
+  });
 
   document.getElementById('catFilterRow')?.querySelectorAll('.cat-pill').forEach(btn => {
     btn.addEventListener('click', () => {

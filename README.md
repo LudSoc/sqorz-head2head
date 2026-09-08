@@ -15,6 +15,7 @@ Compare two BMX Race pilots head-to-head: victories, podiums, win rates, and dir
 - Search and select any two pilots from Sqorz data
 - Overall wins, podiums and win rate per pilot
 - Head-to-head record when they raced in the same category
+- Year and category filters
 - Transponder chrono duels via a table selector (final ranking, full lap, split, hill) when both pilots were timed
 - Event-by-event results side by side (final ranking + chrono tables)
 - Shareable URL (saves both selected pilots)
@@ -40,6 +41,7 @@ Comparez deux pilotes BMX Race face à face : victoires, podiums, taux de réuss
 - Recherche et sélection de deux pilotes dans les données Sqorz
 - Victoires, podiums et taux de victoire globaux par pilote
 - Bilan des confrontations directes quand ils ont couru dans la même catégorie
+- Filtres par année et par catégorie
 - Duels chronos transpondeur via un sélecteur de tableau (classement final, tour complet, intermédiaire, butte) quand les deux pilotes sont chronométrés
 - Résultats événement par événement côte à côte (classement final + tableaux chronos)
 - URL partageable (mémorise les deux pilotes sélectionnés)
