@@ -1,0 +1,154 @@
+// Tests du duel chronos H2H (transpondeur, par métrique).
+// Le code testé est EXTRAIT de index.html (pas recopié) ; le socle vient de common.js.
+// Usage : node --test tests/chrono-h2h.test.js  (uec-index.json doit exister côté sqorz-stats)
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
+
+const root = path.join(__dirname, '..');
+const workspace = path.join(root, '..');
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const commonSrc = fs.readFileSync(path.join(workspace, 'sqorz_stats', 'common.js'), 'utf8');
+const SC = new Function('window', commonSrc + '\nreturn window.SqorzCommon;')({});
+
+function block(src, start, indent = '') {
+  const i = src.indexOf(start);
+  if (i < 0) throw new Error('marqueur introuvable : ' + start);
+  const j = src.indexOf('\n' + indent + '}\n', i);
+  if (j < 0) throw new Error('fin de bloc introuvable pour : ' + start);
+  return src.slice(i, j + ('\n' + indent + '}\n').length);
+}
+function stmt(src, start) {
+  const i = src.indexOf(start);
+  if (i < 0) throw new Error('marqueur introuvable : ' + start);
+  return src.slice(i, src.indexOf(';', i) + 1);
+}
+
+const harnessSrc = [
+  'const { isNotTimedPhase, num, escape } = __SC;',
+  'let pilotA = null, pilotB = null;',
+  stmt(html, 'const CHRONO_METRICS ='),
+  stmt(html, 'const fmtChrono ='),
+  block(html, 'function bestChrono(details, key) {'),
+  block(html, 'function chronoBests(details) {'),
+  block(html, 'function computeChronoStats(confrontations) {'),
+  block(html, 'function specialLabel(r) {'),
+  block(html, 'function fmtDate(iso) {'),
+  block(html, 'function renderH2HTable(confrontations) {'),
+].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
+const H = new Function('__SC', harnessSrc)(SC);
+
+// --- bestChrono : règles d'exclusion ---
+test('bestChrono : ignore DNF et temps ≤ 0', () => {
+  const det = [
+    { phaseName: 'Moto 1', result: 2, time: '35.100' },
+    { phaseName: 'Moto 2', result: 100000, time: '30.000' }, // DNF : ignoré malgré un temps
+    { phaseName: 'Finale', result: 4, time: '0' },           // temps nul : ignoré
+    { phaseName: 'Semi', result: 1, time: '34.950' },
+  ];
+  assert.equal(H.bestChrono(det, 'time'), 34.95);
+  assert.equal(H.bestChrono(det, 'hillTime'), null);
+  assert.equal(H.bestChrono(null, 'time'), null);
+});
+
+test('chronoBests : les 3 métriques', () => {
+  const det = [{ phaseName: 'Moto 1', result: 1, time: '35.100', hillTime: '2.600', corner2Time: '7.800' }];
+  assert.deepEqual(H.chronoBests(det), { time: 35.1, corner2Time: 7.8, hillTime: 2.6 });
+});
+
+// --- computeChronoStats : agrégat ---
+test('computeChronoStats : victoires, égalités, médiane, métriques sans duel exclues', () => {
+  const confs = [
+    { chronoA: { time: 35.0, hillTime: null, corner2Time: null }, chronoB: { time: 35.5, hillTime: null, corner2Time: null } },
+    { chronoA: { time: 36.0, hillTime: 2.6, corner2Time: null }, chronoB: { time: 35.8, hillTime: 2.7, corner2Time: null } },
+    { chronoA: { time: 35.2, hillTime: null, corner2Time: null }, chronoB: { time: 35.2, hillTime: null, corner2Time: null } },
+    { chronoA: { time: null, hillTime: null, corner2Time: null }, chronoB: { time: 35.1, hillTime: null, corner2Time: null } },
+  ];
+  const stats = H.computeChronoStats(confs);
+  assert.equal(stats.length, 2); // corner2Time sans duel → exclue
+  const time = stats.find(s => s.key === 'time');
+  assert.deepEqual([time.duels, time.winsA, time.winsB, time.ties], [3, 1, 1, 1]);
+  assert.ok(Math.abs(time.medDelta - 0.2) < 1e-9, `médiane 0.2 (|0.5|, |0.2|, |0|) — obtenu ${time.medDelta}`);
+  const hill = stats.find(s => s.key === 'hillTime');
+  assert.deepEqual([hill.duels, hill.winsA, hill.winsB], [1, 1, 0]);
+});
+
+test('computeChronoStats : aucun duel → section masquée ([] )', () => {
+  assert.deepEqual(H.computeChronoStats([{ chronoA: {}, chronoB: {} }]), []);
+  assert.deepEqual(H.computeChronoStats([]), []);
+});
+
+// --- rendu tableau : sous-ligne chrono ---
+test('renderH2HTable : sous-ligne chrono quand les deux sont chronométrés', () => {
+  H.__setPilots(
+    { firstName: 'Alan', lastName: 'A' },
+    { firstName: 'Benoit', lastName: 'B' });
+  const out = H.renderH2HTable([{
+    event: { eventName: 'CDF', eventDate: '2026-05-10', eventId: 'e1' },
+    account: { accountCode: 'ffc' },
+    cls: { className: 'U19', perpetualClassCode: 'U19' },
+    rankA: 2, rankB: 4,
+    chronoA: { time: 34.981, hillTime: null, corner2Time: null },
+    chronoB: { time: 35.412, hillTime: null, corner2Time: null },
+  }, {
+    event: { eventName: 'Club', eventDate: '2026-04-01', eventId: 'e2' },
+    account: { accountCode: 'club' },
+    cls: { className: 'U19', perpetualClassCode: 'U19' },
+    rankA: 1, rankB: 3,
+    chronoA: { time: null, hillTime: null, corner2Time: null },
+    chronoB: { time: null, hillTime: null, corner2Time: null },
+  }]);
+  const chronoRows = (out.match(/chrono-duel-row/g) || []).length;
+  assert.equal(chronoRows, 1);
+  assert.ok(out.includes('34.981') && out.includes('35.412') && out.includes('0.431'));
+});
+
+// --- intégration sur le vrai index UEC (mode chrono du socle) ---
+test('intégration UEC : duel chronométré réel entre deux pilotes', () => {
+  const uec = JSON.parse(fs.readFileSync(path.join(workspace, 'sqorz_stats', 'uec-index.json'), 'utf8'));
+  SC.expandIndex(uec, { details: 'chrono', series: false });
+  const norm = SC.norm;
+  // Une classe avec ≥ 2 pilotes chronométrés sur `time`.
+  let duel = null;
+  for (const ev of uec.events) {
+    for (const cls of ev.classes) {
+      const timed = (cls.competitors || []).filter(c =>
+        (c.competitorRankDetails || []).some(d => d.result < 100000 && parseFloat(d.time) > 0));
+      if (timed.length >= 2) {
+        const key = ev => norm((ev.firstName || '') + ' ' + (ev.lastName || ''));
+        if (key(timed[0]) === key(timed[1])) continue;
+        duel = { ev, cls, a: timed[0], b: timed[1] };
+        break;
+      }
+    }
+    if (duel) break;
+  }
+  assert.ok(duel, 'au moins un duel chronométré dans l’index UEC');
+  const stats = H.computeChronoStats([{
+    chronoA: H.chronoBests(duel.a.competitorRankDetails),
+    chronoB: H.chronoBests(duel.b.competitorRankDetails),
+  }]);
+  const time = stats.find(s => s.key === 'time');
+  assert.ok(time && time.duels === 1, '1 duel sur le temps complet');
+  assert.ok(time.medDelta > 0, `écart médian > 0 (${time.medDelta})`);
+});
+
+test('intégration UEC : classes non chronométrées → détails vides (mode économe)', () => {
+  const uec = JSON.parse(fs.readFileSync(path.join(workspace, 'sqorz_stats', 'uec-index.json'), 'utf8'));
+  SC.expandIndex(uec, { details: 'chrono', series: false });
+  let empty = 0, kept = 0, droppedTimed = 0;
+  for (const ev of uec.events) {
+    for (const cls of ev.classes) {
+      for (const c of cls.competitors || []) {
+        const det = c.competitorRankDetails || [];
+        if (!det.length) { empty++; continue; }
+        kept++;
+        if (det.some(d => d.time == null && d.hillTime == null && d.corner2Time == null)) droppedTimed++;
+      }
+    }
+  }
+  assert.ok(empty > 0, `${empty} pilotes sans phases chronométrées (rien stocké)`);
+  assert.equal(droppedTimed, 0, 'aucune phase chronométrée perdue');
+  assert.ok(kept > 0, `${kept} pilotes avec phases chronométrées`);
+});

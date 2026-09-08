@@ -1192,6 +1192,13 @@
   .h2h-table td { padding:10px; border-bottom:1px solid var(--line); vertical-align:middle }
   .h2h-table tr:last-child td { border-bottom:none }
   .h2h-table tr.dnx-row td { color:var(--muted); font-style:italic }
+  .h2h-table tr.chrono-duel-row td{
+    font-size:12px; color:var(--muted); line-height:1.7;
+    background:color-mix(in srgb, var(--accent) 7%, transparent);
+    border-bottom:1px solid var(--line);
+  }
+  .h2h-table tr.chrono-duel-row b{color:var(--ink)}
+  .h2h-table tr.chrono-duel-row .chrono-delta{white-space:nowrap}
   .h2h-table tbody tr:focus { outline:none }
   .h2h-table tbody tr:focus-visible {
     outline:2px solid var(--accent);
@@ -1402,7 +1409,7 @@
 'use strict';
 if (!window.SqorzCommon) throw new Error('[h2h] common.js introuvable — recharge la page.');
 // Socle partagé (common.js) : utils, expansion d'index, chargeur à cache, dates.
-const { norm, escape, humanError, expandIndex, loadIndexCached, formatDataDates } = window.SqorzCommon;
+const { norm, escape, humanError, expandIndex, loadIndexCached, formatDataDates, isNotTimedPhase, num } = window.SqorzCommon;
 
 const INDEX_SOURCES = [
   'https://pub-7af06f138c97425f8062b881846803cb.r2.dev/pilots-index.json',
@@ -1558,16 +1565,16 @@ const indexStatus = (text, isError) => {
 function pilotsCfg() {
   return {
     metaUrl: INDEX_META_URL, cacheKey: INDEX_CACHE_KEY, sources: INDEX_SOURCES,
-    tag: '[h2h]', label: 'Index', estimatedSize: 83_000_000,
-    expandOpts: { details: false, series: false },
+      tag: '[h2h]', label: 'Index', estimatedSize: 83_000_000,
+      expandOpts: { details: 'chrono', series: false },
     onStatus: indexStatus, onProgress: setProgress,
   };
 }
 function uecCfg() {
   return {
     metaUrl: UEC_INDEX_META_URL, cacheKey: UEC_INDEX_CACHE_KEY, sources: UEC_INDEX_SOURCES,
-    tag: '[h2h:uec]', label: 'Index UEC', estimatedSize: 10_000_000,
-    expandOpts: { details: false, series: false },
+      tag: '[h2h:uec]', label: 'Index UEC', estimatedSize: 10_000_000,
+      expandOpts: { details: 'chrono', series: false },
     onStatus: indexStatus, onProgress: setProgress,
   };
 }
@@ -1903,11 +1910,60 @@ function computeConfrontations(pilotA, pilotB) {
         cls: { className: cls.className, perpetualClassCode: cls.perpetualClassCode },
         rankA: entryA.rank,
         rankB: entryB.rank,
+        chronoA: chronoBests(entryA.competitorRankDetails),
+        chronoB: chronoBests(entryB.competitorRankDetails),
       });
     }
   }
 
   return result.sort((a, b) => (b.event.eventDate || '').localeCompare(a.event.eventDate || ''));
+}
+
+// ── Duel chronos (transpondeur) ─────────────────────
+// Meilleurs temps valables par métrique, sur les phases chronométrées du pilote
+// DANS cette confrontation (même événement + même catégorie). Mêmes règles que les
+// chronos de la timeline : phases DNF/DNS/DSQ et temps ≤ 0 exclus.
+const CHRONO_METRICS = [
+  { key: 'time',        label: '⏱️ Chrono' },
+  { key: 'corner2Time', label: '⏱️ Virage 1' },
+  { key: 'hillTime',    label: '⏱️ Butte' },
+];
+const fmtChrono = v => `${Number(v).toFixed(3)} s`;
+function bestChrono(details, key) {
+  let b = null;
+  for (const d of details || []) {
+    if (isNotTimedPhase(d)) continue;
+    const v = num(d[key]);
+    if (v != null && (b == null || v < b)) b = v;
+  }
+  return b;
+}
+function chronoBests(details) {
+  const out = {};
+  for (const m of CHRONO_METRICS) out[m.key] = bestChrono(details, m.key);
+  return out;
+}
+// Agrégat par métrique : duels où les DEUX pilotes sont chronométrés, victoires
+// (meilleur temps), écart médian (absolu). Ne retient que les métriques avec ≥ 1 duel.
+function computeChronoStats(confrontations) {
+  return CHRONO_METRICS.map(m => {
+    const deltas = [];
+    let winsA = 0, winsB = 0, ties = 0;
+    for (const c of confrontations) {
+      const a = c.chronoA ? c.chronoA[m.key] : null;
+      const b = c.chronoB ? c.chronoB[m.key] : null;
+      if (a == null || b == null) continue;
+      if (a < b) winsA++;
+      else if (b < a) winsB++;
+      else ties++;
+      deltas.push(Math.abs(a - b));
+    }
+    deltas.sort((x, y) => x - y);
+    return {
+      key: m.key, label: m.label, duels: deltas.length, winsA, winsB, ties,
+      medDelta: deltas.length ? deltas[Math.floor(deltas.length / 2)] : null,
+    };
+  }).filter(s => s.duels > 0);
 }
 
 function computeH2HStats(confrontations) {
@@ -1977,15 +2033,19 @@ function renderH2HHeader(stats) {
   </div>`;
 }
 
-function renderH2HStatsCards(stats) {
+function renderH2HStatsCards(stats, chronoStats) {
   const tiesHtml = stats.ties > 0
     ? `<div class="stat teal"><div class="k">Égalités</div><div class="v">${stats.ties}</div></div>` : '';
+  const chronoHtml = (chronoStats || []).map(s =>
+    `<div class="stat teal"><div class="k">${escape(s.label)}</div><div class="v">${s.winsA} – ${s.winsB}</div><div class="sub">${s.duels} duel${s.duels > 1 ? 's' : ''} · écart médian ${fmtChrono(s.medDelta)}</div></div>`
+  ).join('');
 
   return `<div class="stats" style="margin:16px 18px">
     <div class="stat sky"><div class="k">Confrontations</div><div class="v">${stats.total}</div><div class="sub">${stats.validCount} avec classements valides</div></div>
     <div class="stat good"><div class="k">Victoires A</div><div class="v">${stats.winsA}</div></div>
     <div class="stat rose"><div class="k">Victoires B</div><div class="v">${stats.winsB}</div></div>
     ${tiesHtml}
+    ${chronoHtml}
   </div>`;
 }
 
@@ -2010,6 +2070,18 @@ function renderH2HTable(confrontations) {
     const bWins = !isDnx && c.rankB < c.rankA;
     const winIcon = isDnx ? '' : aWins ? '<span aria-hidden="true">← 🏆</span>' : bWins ? '<span aria-hidden="true">🏆 →</span>' : '<span aria-hidden="true">=</span>';
 
+    // Duel chronos de la confrontation (métriques où les deux sont chronométrés).
+    const chronoBits = CHRONO_METRICS.map(m => {
+      const a = c.chronoA ? c.chronoA[m.key] : null;
+      const b = c.chronoB ? c.chronoB[m.key] : null;
+      if (a == null || b == null) return null;
+      const aFaster = a < b, bFaster = b < a;
+      return `${m.label} : ${aFaster ? '<b>' : ''}A ${fmtChrono(a)}${aFaster ? '</b>' : ''} – ${bFaster ? '<b>' : ''}B ${fmtChrono(b)}${bFaster ? '</b>' : ''} <span class="chrono-delta">(écart ${fmtChrono(Math.abs(a - b))})</span>`;
+    }).filter(Boolean);
+    const chronoRow = chronoBits.length
+      ? `<tr class="chrono-duel-row"><td colspan="6">${chronoBits.join('<br>')}</td></tr>`
+      : '';
+
     const eventHref = c.account?.accountCode
       ? `https://our.sqorz.com/org/${encodeURIComponent(c.account.accountCode)}/event/${encodeURIComponent(c.event.eventId)}${c.cls.perpetualClassCode ? '/class/' + encodeURIComponent(c.cls.perpetualClassCode) : ''}`
       : null;
@@ -2024,7 +2096,7 @@ function renderH2HTable(confrontations) {
       <td class="rank-a${aWins?' winner':''}">${rankACellContent}</td>
       <td class="rank-b${bWins?' winner':''}">${rankBCellContent}</td>
       <td class="win-icon">${winIcon}</td>
-    </tr>`;
+    </tr>${chronoRow}`;
   }).join('');
 
   return `<div style="overflow-x:auto;padding:0 18px 18px">
@@ -2108,9 +2180,10 @@ function renderH2H() {
 
   const stats = computeH2HStats(filtered);
   const allStats = computeH2HStats(allConfrontations);
+  const chronoStats = computeChronoStats(filtered);
   const catFilter = renderCatFilter(allStats.categories, activeCat);
   const header = renderH2HHeader(stats);
-  const statsCards = renderH2HStatsCards(stats);
+  const statsCards = renderH2HStatsCards(stats, chronoStats);
   const table = renderH2HTable(filtered);
 
   h2hResults.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
