@@ -1192,13 +1192,7 @@
   .h2h-table td { padding:10px; border-bottom:1px solid var(--line); vertical-align:middle }
   .h2h-table tr:last-child td { border-bottom:none }
   .h2h-table tr.dnx-row td { color:var(--muted); font-style:italic }
-  .h2h-table tr.chrono-duel-row td{
-    font-size:12px; color:var(--muted); line-height:1.7;
-    background:color-mix(in srgb, var(--accent) 7%, transparent);
-    border-bottom:1px solid var(--line);
-  }
-  .h2h-table tr.chrono-duel-row b{color:var(--ink)}
-  .h2h-table tr.chrono-duel-row .chrono-delta{white-space:nowrap}
+  .h2h-table td.chrono-gap{white-space:nowrap;color:var(--muted)}
   .h2h-table tbody tr:focus { outline:none }
   .h2h-table tbody tr:focus-visible {
     outline:2px solid var(--accent);
@@ -2049,6 +2043,15 @@ function renderH2HStatsCards(stats, chronoStats) {
   </div>`;
 }
 
+function eventNameCell(c) {
+  const eventHref = c.account?.accountCode
+    ? `https://our.sqorz.com/org/${encodeURIComponent(c.account.accountCode)}/event/${encodeURIComponent(c.event.eventId)}${c.cls.perpetualClassCode ? '/class/' + encodeURIComponent(c.cls.perpetualClassCode) : ''}`
+    : null;
+  return eventHref
+    ? `<a class="sqorz-link" href="${eventHref}" target="_blank" rel="noopener">${escape(c.event.eventName || c.event.eventId)}</a>`
+    : escape(c.event.eventName || c.event.eventId);
+}
+
 function renderH2HTable(confrontations) {
   if (!confrontations.length) return '';
   const nameA = escape(pilotA.firstName + ' ' + pilotA.lastName);
@@ -2070,24 +2073,7 @@ function renderH2HTable(confrontations) {
     const bWins = !isDnx && c.rankB < c.rankA;
     const winIcon = isDnx ? '' : aWins ? '<span aria-hidden="true">← 🏆</span>' : bWins ? '<span aria-hidden="true">🏆 →</span>' : '<span aria-hidden="true">=</span>';
 
-    // Duel chronos de la confrontation (métriques où les deux sont chronométrés).
-    const chronoBits = CHRONO_METRICS.map(m => {
-      const a = c.chronoA ? c.chronoA[m.key] : null;
-      const b = c.chronoB ? c.chronoB[m.key] : null;
-      if (a == null || b == null) return null;
-      const aFaster = a < b, bFaster = b < a;
-      return `${m.label} : ${aFaster ? '<b>' : ''}A ${fmtChrono(a)}${aFaster ? '</b>' : ''} – ${bFaster ? '<b>' : ''}B ${fmtChrono(b)}${bFaster ? '</b>' : ''} <span class="chrono-delta">(écart ${fmtChrono(Math.abs(a - b))})</span>`;
-    }).filter(Boolean);
-    const chronoRow = chronoBits.length
-      ? `<tr class="chrono-duel-row"><td colspan="6">${chronoBits.join('<br>')}</td></tr>`
-      : '';
-
-    const eventHref = c.account?.accountCode
-      ? `https://our.sqorz.com/org/${encodeURIComponent(c.account.accountCode)}/event/${encodeURIComponent(c.event.eventId)}${c.cls.perpetualClassCode ? '/class/' + encodeURIComponent(c.cls.perpetualClassCode) : ''}`
-      : null;
-    const eventName = eventHref
-      ? `<a class="sqorz-link" href="${eventHref}" target="_blank" rel="noopener">${escape(c.event.eventName || c.event.eventId)}</a>`
-      : escape(c.event.eventName || c.event.eventId);
+    const eventName = eventNameCell(c);
 
     return `<tr class="${isDnx ? 'dnx-row' : ''}" tabindex="0">
       <td class="ev-date">${fmtDate(c.event.eventDate)}</td>
@@ -2096,7 +2082,7 @@ function renderH2HTable(confrontations) {
       <td class="rank-a${aWins?' winner':''}">${rankACellContent}</td>
       <td class="rank-b${bWins?' winner':''}">${rankBCellContent}</td>
       <td class="win-icon">${winIcon}</td>
-    </tr>${chronoRow}`;
+    </tr>`;
   }).join('');
 
   return `<div style="overflow-x:auto;padding:0 18px 18px">
@@ -2109,6 +2095,52 @@ function renderH2HTable(confrontations) {
           <th>${nameA}</th>
           <th>${nameB}</th>
           <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// Tableau des duels chronométrés pour UNE métrique (lignes où les deux pilotes
+// sont chronométrés). Vide ('') si aucun duel — la section n'apparaît pas.
+function renderChronoTable(confrontations, metric) {
+  const duels = confrontations.filter(c => {
+    const a = c.chronoA ? c.chronoA[metric.key] : null;
+    const b = c.chronoB ? c.chronoB[metric.key] : null;
+    return a != null && b != null;
+  });
+  if (!duels.length) return '';
+  const nameA = escape(pilotA.firstName + ' ' + pilotA.lastName);
+  const nameB = escape(pilotB.firstName + ' ' + pilotB.lastName);
+
+  const rows = duels.map(c => {
+    const a = c.chronoA[metric.key], b = c.chronoB[metric.key];
+    const aFaster = a < b, bFaster = b < a;
+    return `<tr tabindex="0">
+      <td class="ev-date">${fmtDate(c.event.eventDate)}</td>
+      <td class="ev-name">${eventNameCell(c)}</td>
+      <td class="ev-cat">${escape(c.cls.className || c.cls.perpetualClassCode || '')}</td>
+      <td class="rank-a${aFaster?' winner':''}">${fmtChrono(a)}</td>
+      <td class="rank-b${bFaster?' winner':''}">${fmtChrono(b)}</td>
+      <td class="chrono-gap">${fmtChrono(Math.abs(a - b))}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="section-title" style="padding:0 18px;margin-bottom:0">
+    ${escape(metric.label)}
+    <span class="meta">${duels.length} duel${duels.length > 1 ? 's' : ''}</span>
+  </div>
+  <div style="overflow-x:auto;padding:0 18px 18px">
+    <table class="h2h-table chrono-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Événement</th>
+          <th>Catégorie</th>
+          <th>${nameA}</th>
+          <th>${nameB}</th>
+          <th>Écart</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -2185,6 +2217,7 @@ function renderH2H() {
   const header = renderH2HHeader(stats);
   const statsCards = renderH2HStatsCards(stats, chronoStats);
   const table = renderH2HTable(filtered);
+  const chronoTables = CHRONO_METRICS.map(m => renderChronoTable(filtered, m)).join('');
 
   h2hResults.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
     ${header}
@@ -2197,10 +2230,11 @@ function renderH2H() {
     ${catFilter}
     ${statsCards}
     <div class="section-title" style="padding:0 18px;margin-bottom:0">
-      Détail des confrontations
+      🏆 Classement final
       <span class="meta">${filtered.length} résultat(s)</span>
     </div>
     ${table}
+    ${chronoTables}
   </div>`;
 
   document.getElementById('catFilterRow')?.querySelectorAll('.cat-pill').forEach(btn => {

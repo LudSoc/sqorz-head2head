@@ -35,8 +35,10 @@ const harnessSrc = [
   block(html, 'function computeChronoStats(confrontations) {'),
   block(html, 'function specialLabel(r) {'),
   block(html, 'function fmtDate(iso) {'),
+  block(html, 'function eventNameCell(c) {'),
   block(html, 'function renderH2HTable(confrontations) {'),
-].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
+  block(html, 'function renderChronoTable(confrontations, metric) {'),
+].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, renderChronoTable, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
 const H = new Function('__SC', harnessSrc)(SC);
 
 // --- bestChrono : règles d'exclusion ---
@@ -79,8 +81,8 @@ test('computeChronoStats : aucun duel → section masquée ([] )', () => {
   assert.deepEqual(H.computeChronoStats([]), []);
 });
 
-// --- rendu tableau : sous-ligne chrono ---
-test('renderH2HTable : sous-ligne chrono quand les deux sont chronométrés', () => {
+// --- rendu : tableau rangs sans chrono + tableaux dédiés par métrique ---
+test('renderH2HTable : rangs seuls, sans sous-ligne chrono', () => {
   H.__setPilots(
     { firstName: 'Alan', lastName: 'A' },
     { firstName: 'Benoit', lastName: 'B' });
@@ -91,6 +93,22 @@ test('renderH2HTable : sous-ligne chrono quand les deux sont chronométrés', ()
     rankA: 2, rankB: 4,
     chronoA: { time: 34.981, hillTime: null, corner2Time: null },
     chronoB: { time: 35.412, hillTime: null, corner2Time: null },
+  }]);
+  assert.ok(!out.includes('34.981'), 'pas de temps dans le tableau des rangs');
+  assert.ok(out.includes('🥈') && out.includes('4e'));
+});
+
+test('renderChronoTable : un tableau par métrique, que les duels chronométrés', () => {
+  H.__setPilots(
+    { firstName: 'Alan', lastName: 'A' },
+    { firstName: 'Benoit', lastName: 'B' });
+  const confs = [{
+    event: { eventName: 'CDF', eventDate: '2026-05-10', eventId: 'e1' },
+    account: { accountCode: 'ffc' },
+    cls: { className: 'U19', perpetualClassCode: 'U19' },
+    rankA: 2, rankB: 4,
+    chronoA: { time: 34.981, hillTime: 2.601, corner2Time: null },
+    chronoB: { time: 35.412, hillTime: 2.633, corner2Time: null },
   }, {
     event: { eventName: 'Club', eventDate: '2026-04-01', eventId: 'e2' },
     account: { accountCode: 'club' },
@@ -98,10 +116,15 @@ test('renderH2HTable : sous-ligne chrono quand les deux sont chronométrés', ()
     rankA: 1, rankB: 3,
     chronoA: { time: null, hillTime: null, corner2Time: null },
     chronoB: { time: null, hillTime: null, corner2Time: null },
-  }]);
-  const chronoRows = (out.match(/chrono-duel-row/g) || []).length;
-  assert.equal(chronoRows, 1);
-  assert.ok(out.includes('34.981') && out.includes('35.412') && out.includes('0.431'));
+  }];
+  const timeTbl = H.renderChronoTable(confs, H.CHRONO_METRICS[0]);
+  assert.ok(timeTbl.includes('34.981') && timeTbl.includes('35.412') && timeTbl.includes('0.431'));
+  assert.ok(timeTbl.includes('1 duel'), 'compteur de duels dans le titre');
+  assert.ok(!timeTbl.includes('Club'), 'la course non chronométrée est exclue');
+  const hillTbl = H.renderChronoTable(confs, H.CHRONO_METRICS[2]);
+  assert.ok(hillTbl.includes('2.601') && hillTbl.includes('2.633'));
+  const splitTbl = H.renderChronoTable(confs, H.CHRONO_METRICS[1]);
+  assert.equal(splitTbl, '', 'métrique sans duel → pas de tableau');
 });
 
 // --- intégration sur le vrai index UEC (mode chrono du socle) ---
