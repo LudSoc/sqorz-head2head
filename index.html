@@ -2164,7 +2164,7 @@ function computeAndRenderH2H() {
   }
 
   renderH2H();
-  document.title = `${pilotA.firstName} ${pilotA.lastName} vs ${pilotB.firstName} ${pilotB.lastName} — Sqorz Stats`;
+  document.title = `${pilotA.firstName} ${pilotA.lastName} vs ${pilotB.firstName} ${pilotB.lastName} — Head to Head`;
   setTimeout(() => {
     const topbarH = document.querySelector('.topbar')?.offsetHeight || 0;
     const y = h2hResults.getBoundingClientRect().top + window.scrollY - topbarH - 12;
