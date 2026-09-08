@@ -1404,6 +1404,12 @@ const INDEX_SOURCES = [
   'https://github.com/LudSoc/sqorz-stats/releases/latest/download/pilots-index.json',
   'https://raw.githubusercontent.com/LudSoc/sqorz-stats/main/pilots-index.json',
 ];
+// Index UEC (JSTiming — Coupe/Championnats d'Europe) : mêmes sources, optionnel.
+const UEC_INDEX_SOURCES = [
+  'https://pub-7af06f138c97425f8062b881846803cb.r2.dev/uec-index.json',
+  'https://github.com/LudSoc/sqorz-stats/releases/latest/download/uec-index.json',
+  'https://raw.githubusercontent.com/LudSoc/sqorz-stats/main/uec-index.json',
+];
 const SQORZ_STATS_BASE = window.location.protocol === 'file:'
   ? '../sqorz_stats/index.html'
   : 'https://ludsoc.github.io/sqorz-stats/';
@@ -1422,9 +1428,9 @@ const escape = s => String(s ?? '').replace(/[&<>"']/g, c =>
 );
 
 function findPilotByNormKey(key) {
-  if (!pilotsIndex || !key) return null;
+  if ((!pilotsIndex && !uecIndex) || !key) return null;
   const seen = new Map();
-  for (const ev of (pilotsIndex.events || [])) {
+  for (const ev of allEvents()) {
     for (const cls of (ev.classes || [])) {
       for (const c of (cls.competitors || [])) {
         const k = norm((c.firstName || '') + ' ' + (c.lastName || '')).trim();
@@ -1511,9 +1517,18 @@ function specialLabel(r) {
 }
 
 // ── État global ──────────────────────────────────
-let pilotsIndex = null; // l'index expansé
+let pilotsIndex = null; // l'index FR expansé
+let uecIndex = null;    // l'index UEC expansé (optionnel — l'app fonctionne sans)
 let pilotA = null;      // { firstName, lastName, groupName, normKey }
 let pilotB = null;      // idem
+
+// Tous les événements FR + UEC (l'UEC enrichit recherche, suggestions et confrontations).
+function allEvents() {
+  const out = [];
+  if (pilotsIndex) out.push(...(pilotsIndex.events || []));
+  if (uecIndex) out.push(...(uecIndex.events || []));
+  return out;
+}
 
 // ── DOM ──────────────────────────────────────────
 const statusCard        = document.getElementById('statusCard');
@@ -1558,6 +1573,9 @@ function setProgress(done, total) {
 const INDEX_CACHE_NAME = 'sqorz-index-v1';
 const INDEX_CACHE_KEY = 'https://sqorz.local/cache/pilots-index.json';
 const INDEX_META_URL = 'https://ludsoc.github.io/sqorz-stats/pilots-index.meta.json';
+// Index UEC : même cache (clé dédiée), piloté par son propre meta.json.
+const UEC_INDEX_CACHE_KEY = 'https://sqorz.local/cache/uec-index.json';
+const UEC_INDEX_META_URL = 'https://ludsoc.github.io/sqorz-stats/uec-index.meta.json';
 
 async function openIndexCache() {
   if (typeof caches === 'undefined') return null;
@@ -1600,56 +1618,56 @@ function showDataDate(iso) {
   wrap.hidden = false;
 }
 
-async function loadIndexCached() {
+async function loadOneIndexCached({ metaUrl, cacheKey, sources, tag, label }) {
   let wantSha = null;
   try {
-    const metaRes = await fetch(INDEX_META_URL);
+    const metaRes = await fetch(metaUrl);
     if (metaRes.ok) {
       const meta = await metaRes.json();
       wantSha = (meta && meta.index && meta.index.sha256) || null;
     }
-  } catch (e) { console.warn('[h2h] meta indisponible :', e && e.message); }
+  } catch (e) { console.warn(tag + ' meta indisponible :', e && e.message); }
 
   const cache = await openIndexCache();
   let hit = null;
   if (cache) {
     try {
-      const res = await cache.match(INDEX_CACHE_KEY);
+      const res = await cache.match(cacheKey);
       if (res) {
         const sha = res.headers.get('x-index-sha');
         if ((wantSha && sha === wantSha) || !wantSha) hit = res;
       }
-    } catch (e) { console.warn('[h2h] lecture du cache :', e && e.message); }
+    } catch (e) { console.warn(tag + ' lecture du cache :', e && e.message); }
   }
   if (hit) {
-    statusEl.textContent = 'Index déjà à jour — lecture du cache…';
+    statusEl.textContent = label + ' déjà à jour — lecture du cache…';
     return expandBytes(new Uint8Array(await hit.arrayBuffer()));
   }
 
   try {
     let res = null, lastErr = null;
-    for (const url of INDEX_SOURCES) {
+    for (const url of sources) {
       try {
         const r = await fetch(url);
         if (r.ok) { res = r; break; }
         lastErr = new Error(`HTTP ${r.status}`);
-      } catch (e) { lastErr = e; console.warn('[h2h] source indisponible : ' + url, e && e.message); }
+      } catch (e) { lastErr = e; console.warn(tag + ' source indisponible : ' + url, e && e.message); }
     }
     if (!res) throw lastErr || new Error('Index indisponible.');
     const bytes = await streamIndexBytes(res);
     if (cache && wantSha) {
       try {
-        await cache.put(INDEX_CACHE_KEY, new Response(bytes, {
+        await cache.put(cacheKey, new Response(bytes, {
           headers: { 'Content-Type': 'application/json', 'X-Index-Sha': wantSha },
         }));
-      } catch (e) { console.warn('[h2h] écriture du cache :', e && e.message); }
+      } catch (e) { console.warn(tag + ' écriture du cache :', e && e.message); }
     }
     return expandBytes(bytes);
   } catch (err) {
     // Dernier recours : copie périmée en cache (hors-ligne)
     if (cache) {
       try {
-        const stale = await cache.match(INDEX_CACHE_KEY);
+        const stale = await cache.match(cacheKey);
         if (stale) {
           statusEl.className = 'status error';
           statusEl.textContent = 'Hors-ligne — dernière copie connue.';
@@ -1661,6 +1679,20 @@ async function loadIndexCached() {
   }
 }
 
+async function loadIndexCached() {
+  return loadOneIndexCached({
+    metaUrl: INDEX_META_URL, cacheKey: INDEX_CACHE_KEY, sources: INDEX_SOURCES,
+    tag: '[h2h]', label: 'Index',
+  });
+}
+
+async function loadUecIndexCached() {
+  return loadOneIndexCached({
+    metaUrl: UEC_INDEX_META_URL, cacheKey: UEC_INDEX_CACHE_KEY, sources: UEC_INDEX_SOURCES,
+    tag: '[h2h:uec]', label: 'Index UEC',
+  });
+}
+
 async function loadIndex() {
   retryBtn.hidden = true;
   statusEl.className = 'status loading';
@@ -1669,6 +1701,14 @@ async function loadIndex() {
   selectionCard.hidden = true;
   try {
     pilotsIndex = await loadIndexCached();
+    // UEC optionnel : l'app fonctionne sans (données FR seules).
+    try {
+      statusEl.textContent = 'Chargement des données UEC…';
+      uecIndex = await loadUecIndexCached();
+    } catch (e) {
+      console.warn('[h2h] uec-index.json indisponible :', e && e.message);
+      uecIndex = null;
+    }
     statusCard.hidden = true;
     selectionCard.hidden = false;
     inputA.focus();
@@ -1684,10 +1724,10 @@ retryBtn.onclick = loadIndex;
 
 // ── 3.1 Recherche de pilotes ─────────────────────
 function searchPilots(query, excludeNormKey = null) {
-  if (!pilotsIndex || !norm(query)) return [];
+  if ((!pilotsIndex && !uecIndex) || !norm(query)) return [];
   const tokens = norm(query).split(' ').filter(Boolean);
   const map = new Map();
-  for (const ev of (pilotsIndex.events || [])) {
+  for (const ev of allEvents()) {
     for (const cls of (ev.classes || [])) {
       for (const c of (cls.competitors || [])) {
         const key = norm((c.firstName || '') + ' ' + (c.lastName || '')).trim();
@@ -1855,11 +1895,11 @@ invertBtn.addEventListener('click', () => {
 
 // ── Task 4: Compute top opponents et render suggestions ─────
 function computeTopOpponents(pilot, maxN = 10) {
-  if (!pilotsIndex || !pilot) return [];
+  if ((!pilotsIndex && !uecIndex) || !pilot) return [];
   const pilotKey = pilot.normKey;
   const opponents = new Map();
 
-  for (const ev of (pilotsIndex.events || [])) {
+  for (const ev of allEvents()) {
     for (const cls of (ev.classes || [])) {
       const pilotEntry = cls.competitors.find(c =>
         norm((c.firstName || '') + ' ' + (c.lastName || '')).trim() === pilotKey
@@ -1939,12 +1979,12 @@ function onPilotASelected() {
 }
 
 function computeConfrontations(pilotA, pilotB) {
-  if (!pilotsIndex || !pilotA || !pilotB) return [];
+  if ((!pilotsIndex && !uecIndex) || !pilotA || !pilotB) return [];
   const keyA = pilotA.normKey;
   const keyB = pilotB.normKey;
   const result = [];
 
-  for (const ev of (pilotsIndex.events || [])) {
+  for (const ev of allEvents()) {
     for (const cls of (ev.classes || [])) {
       const entryA = cls.competitors.find(c =>
         norm((c.firstName || '') + ' ' + (c.lastName || '')).trim() === keyA
@@ -2122,7 +2162,7 @@ function computeAndRenderH2H() {
   if (!allConfrontations.length) {
     const keyA = pilotA.normKey, keyB = pilotB.normKey;
     let hasCommonEvent = false;
-    for (const ev of (pilotsIndex.events || [])) {
+    for (const ev of allEvents()) {
       let hasA = false, hasB = false;
       for (const cls of ev.classes) {
         for (const c of cls.competitors) {
