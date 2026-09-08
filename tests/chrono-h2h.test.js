@@ -38,7 +38,8 @@ const harnessSrc = [
   block(html, 'function eventNameCell(c) {'),
   block(html, 'function renderH2HTable(confrontations) {'),
   block(html, 'function renderChronoTable(confrontations, metric) {'),
-].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, renderChronoTable, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
+  block(html, 'function renderViewSelector(chronoStats, activeView, rankCount) {'),
+].join('\n') + '\nreturn { CHRONO_METRICS, fmtChrono, bestChrono, chronoBests, computeChronoStats, renderH2HTable, renderChronoTable, renderViewSelector, __setPilots: (a, b) => { pilotA = a; pilotB = b; } };';
 const H = new Function('__SC', harnessSrc)(SC);
 
 // --- bestChrono : règles d'exclusion ---
@@ -125,6 +126,27 @@ test('renderChronoTable : un tableau par métrique, que les duels chronométrés
   assert.ok(hillTbl.includes('2.601') && hillTbl.includes('2.633'));
   const splitTbl = H.renderChronoTable(confs, H.CHRONO_METRICS[1]);
   assert.equal(splitTbl, '', 'métrique sans duel → pas de tableau');
+});
+
+// --- sélecteur de vue : une pastille par tableau disponible ---
+test('renderViewSelector : rangs toujours + métriques avec duels', () => {
+  const chronoStats = [
+    { key: 'time', label: '⏱️ Chrono', duels: 3, winsA: 2, winsB: 1, ties: 0, medDelta: 0.2 },
+    { key: 'hillTime', label: '⏱️ Butte', duels: 1, winsA: 0, winsB: 1, ties: 0, medDelta: 0.05 },
+  ];
+  const out = H.renderViewSelector(chronoStats, 'rank', 12);
+  assert.ok(out.includes('data-chrono-view="rank"'), 'pastille classement');
+  assert.ok(out.includes('data-chrono-view="time"'), 'pastille chrono');
+  assert.ok(out.includes('data-chrono-view="hillTime"'), 'pastille butte');
+  assert.ok(!out.includes('corner2Time'), 'virage sans duel → pas de pastille');
+  assert.ok(out.includes('(12)') && out.includes('(3)'), 'compteurs affichés');
+  assert.ok(/data-chrono-view="rank" aria-pressed="true"/.test(out), 'vue active marquée');
+  const outMetric = H.renderViewSelector(chronoStats, 'time', 12);
+  assert.ok(/data-chrono-view="time" aria-pressed="true"/.test(outMetric));
+});
+
+test('renderViewSelector : absent sans duel chronométré', () => {
+  assert.equal(H.renderViewSelector([], 'rank', 12), '');
 });
 
 // --- intégration sur le vrai index UEC (mode chrono du socle) ---

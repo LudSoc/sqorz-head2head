@@ -2027,19 +2027,15 @@ function renderH2HHeader(stats) {
   </div>`;
 }
 
-function renderH2HStatsCards(stats, chronoStats) {
+function renderH2HStatsCards(stats) {
   const tiesHtml = stats.ties > 0
     ? `<div class="stat teal"><div class="k">Égalités</div><div class="v">${stats.ties}</div></div>` : '';
-  const chronoHtml = (chronoStats || []).map(s =>
-    `<div class="stat teal"><div class="k">${escape(s.label)}</div><div class="v">${s.winsA} – ${s.winsB}</div><div class="sub">${s.duels} duel${s.duels > 1 ? 's' : ''} · écart médian ${fmtChrono(s.medDelta)}</div></div>`
-  ).join('');
 
   return `<div class="stats" style="margin:16px 18px">
     <div class="stat sky"><div class="k">Confrontations</div><div class="v">${stats.total}</div><div class="sub">${stats.validCount} avec classements valides</div></div>
     <div class="stat good"><div class="k">Victoires A</div><div class="v">${stats.winsA}</div></div>
     <div class="stat rose"><div class="k">Victoires B</div><div class="v">${stats.winsB}</div></div>
     ${tiesHtml}
-    ${chronoHtml}
   </div>`;
 }
 
@@ -2160,10 +2156,12 @@ function renderCatFilter(categories, activeCat) {
 
 let allConfrontations = [];
 let activeCat = '';
+let activeChronoView = 'rank'; // tableau affiché : 'rank' ou une clé CHRONO_METRICS
 
 function computeAndRenderH2H() {
   allConfrontations = computeConfrontations(pilotA, pilotB);
   activeCat = '';
+  activeChronoView = 'rank';
 
   if (!allConfrontations.length) {
     const keyA = pilotA.normKey, keyB = pilotB.normKey;
@@ -2204,6 +2202,20 @@ function computeAndRenderH2H() {
   }, 50);
 }
 
+// Sélecteur du tableau affiché : classement final + une pastille par métrique
+// chrono ayant des duels (les métriques sans duel n'apparaissent pas).
+// Absent quand aucun duel chronométré (rien d'autre à afficher que les rangs).
+function renderViewSelector(chronoStats, activeView, rankCount) {
+  const views = [{ key: 'rank', label: '🏆 Classement final', n: rankCount }]
+    .concat(chronoStats.map(s => ({ key: s.key, label: s.label, n: s.duels })));
+  if (views.length <= 1) return '';
+  const pills = views.map(v => {
+    const isActive = v.key === activeView;
+    return `<button type="button" class="cat-pill${isActive?' active':''}" data-chrono-view="${v.key}" aria-pressed="${isActive}">${escape(v.label)} (${v.n})</button>`;
+  }).join('');
+  return `<div class="cat-filter-row" id="chronoViewRow" role="group" aria-label="Choisir le tableau affiché">${pills}</div>`;
+}
+
 function renderH2H() {
   document.body.classList.add('has-results');
   const filtered = activeCat
@@ -2213,11 +2225,22 @@ function renderH2H() {
   const stats = computeH2HStats(filtered);
   const allStats = computeH2HStats(allConfrontations);
   const chronoStats = computeChronoStats(filtered);
+  // Une seule vue à la fois ; repli sur les rangs si la métrique n'a plus de duel filtré.
+  const view = (activeChronoView !== 'rank' && chronoStats.some(s => s.key === activeChronoView))
+    ? activeChronoView : 'rank';
+  activeChronoView = view;
   const catFilter = renderCatFilter(allStats.categories, activeCat);
   const header = renderH2HHeader(stats);
-  const statsCards = renderH2HStatsCards(stats, chronoStats);
+  const statsCards = renderH2HStatsCards(stats);
   const table = renderH2HTable(filtered);
-  const chronoTables = CHRONO_METRICS.map(m => renderChronoTable(filtered, m)).join('');
+  const viewSelector = renderViewSelector(chronoStats, view, filtered.length);
+  const detailBlock = view === 'rank'
+    ? `<div class="section-title" style="padding:0 18px;margin-bottom:0">
+      🏆 Classement final
+      <span class="meta">${filtered.length} résultat(s)</span>
+    </div>
+    ${table}`
+    : renderChronoTable(filtered, CHRONO_METRICS.find(m => m.key === view));
 
   h2hResults.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
     ${header}
@@ -2229,17 +2252,20 @@ function renderH2H() {
     </div>
     ${catFilter}
     ${statsCards}
-    <div class="section-title" style="padding:0 18px;margin-bottom:0">
-      🏆 Classement final
-      <span class="meta">${filtered.length} résultat(s)</span>
-    </div>
-    ${table}
-    ${chronoTables}
+    ${viewSelector}
+    ${detailBlock}
   </div>`;
 
   document.getElementById('catFilterRow')?.querySelectorAll('.cat-pill').forEach(btn => {
     btn.addEventListener('click', () => {
       activeCat = btn.dataset.cat;
+      renderH2H();
+    });
+  });
+
+  document.getElementById('chronoViewRow')?.querySelectorAll('[data-chrono-view]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeChronoView = btn.dataset.chronoView;
       renderH2H();
     });
   });
