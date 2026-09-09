@@ -1411,7 +1411,7 @@
 'use strict';
 if (!window.SqorzCommon) throw new Error('[h2h] common.js introuvable — recharge la page.');
 // Socle partagé (common.js) : utils, expansion d'index, chargeur à cache, dates.
-const { norm, escape, humanError, expandIndex, loadIndexCached, formatDataDates, isNotTimedPhase, num } = window.SqorzCommon;
+const { norm, escape, humanError, expandIndex, loadIndexCached, renderDataDates, setTextStatus, setBarProgress, isNotTimedPhase, num } = window.SqorzCommon;
 // --- Noms complets des clubs (clubs.json, cf. club_stats/tools/clubs/README.md) ---
 // Normalisation compatible club_stats (conserve '-' et la ponctuation : JOUE-T ≠ JOUE T).
 const normClubCode = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -1568,11 +1568,7 @@ const h2hResults        = document.getElementById('h2hResults');
 
 // ── Chargement ───────────────────────────────────
 function setProgress(done, total) {
-  const wrap = document.getElementById('progressWrap');
-  const bar  = document.getElementById('progressBar');
-  if (!total) { wrap.hidden = true; return; }
-  wrap.hidden = false;
-  bar.style.width = Math.min(99, Math.round(100 * done / total)) + '%';
+  setBarProgress(done, total);
 }
 
 // ── Cache client piloté par meta.json (sha256), via SqorzCommon.loadIndexCached ───────────
@@ -1582,10 +1578,7 @@ const INDEX_META_URL = 'https://ludsoc.github.io/sqorz-stats/pilots-index.meta.j
 const UEC_INDEX_CACHE_KEY = 'https://sqorz.local/cache/uec-index.json';
 const UEC_INDEX_META_URL = 'https://ludsoc.github.io/sqorz-stats/uec-index.meta.json';
 
-const indexStatus = (text, isError) => {
-  statusEl.textContent = text;
-  if (isError) statusEl.className = 'status error';
-};
+const indexStatus = (text, isError) => setTextStatus(statusEl, text, isError);
 function pilotsCfg() {
   return {
     metaUrl: INDEX_META_URL, cacheKey: INDEX_CACHE_KEY, sources: INDEX_SOURCES,
@@ -1605,15 +1598,10 @@ function uecCfg() {
 
 // Fraîcheur par source dans le pied de page (une seule date si identiques).
 function showDataDates() {
-  const wrap = document.getElementById('dataDateWrap');
-  const el = document.getElementById('dataDate');
-  const text = formatDataDates([
+  renderDataDates([
     { tag: 'FR', iso: pilotsIndex && pilotsIndex.generated },
     { tag: 'UEC', iso: uecIndex && uecIndex.generated },
   ]);
-  if (!wrap || !el || !text) return;
-  el.textContent = text;
-  wrap.hidden = false;
 }
 
 async function loadIndex() {
