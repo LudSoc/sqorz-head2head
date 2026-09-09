@@ -27,13 +27,11 @@ function stmt(src, start) {
 
 const harnessSrc = [
   'const { isNotTimedPhase, num, escape } = __SC;',
-  'const window = { SqorzCommon: __SC };',
   'let pilotA = null, pilotB = null;',
   "const SQORZ_STATS_BASE = 'https://example.invalid/';",
   block(html, 'const normClubCode = s =>'),
   "for (const [k, v] of Object.entries({ besanc: 'BMX BESANCON' })) clubFullNames.set(k, v);",
   block(html, 'function clubDisplayName(raw) {'),
-  stmt(html, 'const UEC_NOTE ='),
   stmt(html, 'const CHRONO_METRICS ='),
   stmt(html, 'const fmtChrono ='),
   block(html, 'function bestChrono(details, key) {'),
@@ -255,6 +253,7 @@ test('intégration UEC : classes non chronométrées → détails vides (mode é
   assert.ok(kept > 0, `${kept} pilotes avec phases chronométrées`);
 });
 
+<<<<<<< HEAD
 test('pied de page : Sqorz et JSTiming (données UEC utilisées ici)', () => {
   assert.ok(html.includes('>Sqorz</a> et <a href="https://www.jstiming.nl"'), 'double attribution');
 });
@@ -273,6 +272,8 @@ test('renderH2HHeader : disclaimer UEC si index UEC chargé, absent sinon', () =
   } finally { delete global.uecIndex; }
 });
 
+=======
+>>>>>>> 371f5b4 (Retire l'info contextuelle UEC (le footer suffit))
 test('pied de page : Sqorz et JSTiming (données UEC utilisées ici)', () => {
   assert.ok(html.includes('>Sqorz</a> et <a href="https://www.jstiming.nl"'), 'double attribution');
 });

@@ -1412,7 +1412,6 @@
 if (!window.SqorzCommon) throw new Error('[h2h] common.js introuvable — recharge la page.');
 // Socle partagé (common.js) : utils, expansion d'index, chargeur à cache, dates.
 const { norm, escape, humanError, expandIndex, loadIndexCached, renderDataDates, setTextStatus, setBarProgress, isNotTimedPhase, num } = window.SqorzCommon;
-const UEC_NOTE = typeof window.SqorzCommon.UEC_SOURCE_NOTE === 'string' ? window.SqorzCommon.UEC_SOURCE_NOTE : '';
 // --- Noms complets des clubs (clubs.json, cf. club_stats/tools/clubs/README.md) ---
 // Normalisation compatible club_stats (conserve '-' et la ponctuation : JOUE-T ≠ JOUE T).
 const normClubCode = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -2031,10 +2030,6 @@ function renderH2HHeader(stats, viewScore) {
 
   const linkA = `${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotA.firstName + ' ' + pilotA.lastName)}`;
   const linkB = `${SQORZ_STATS_BASE}?name=${encodeURIComponent(pilotB.firstName + ' ' + pilotB.lastName)}`;
-  // Disclaimer source UEC quand l'index UEC enrichit le duel (garde typeof : harness de test).
-  const uecNote = (typeof uecIndex !== 'undefined' && uecIndex && UEC_NOTE)
-    ? `<div style="font-size:11.5px;color:var(--muted);text-align:center;padding:0 18px 10px">ⓘ ${escape(UEC_NOTE)}</div>`
-    : '';
 
   return `<div class="h2h-header">
     <div class="h2h-pilot">
@@ -2053,7 +2048,7 @@ function renderH2HHeader(stats, viewScore) {
       <div class="hp-wins${bLeads?' leader':''}">${winsB}</div>
       <div style="font-size:12px;color:var(--muted)">${escape(caption)}</div>
     </div>
-  </div>${uecNote}`;
+  </div>`;
 }
 
 function renderH2HStatsCards(stats) {
