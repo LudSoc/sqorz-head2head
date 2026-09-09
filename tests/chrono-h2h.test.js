@@ -253,27 +253,6 @@ test('intégration UEC : classes non chronométrées → détails vides (mode é
   assert.ok(kept > 0, `${kept} pilotes avec phases chronométrées`);
 });
 
-<<<<<<< HEAD
-test('pied de page : Sqorz et JSTiming (données UEC utilisées ici)', () => {
-  assert.ok(html.includes('>Sqorz</a> et <a href="https://www.jstiming.nl"'), 'double attribution');
-});
-
-test('renderH2HHeader : disclaimer UEC si index UEC chargé, absent sinon', () => {
-  const stats = { winsA: 2, winsB: 1, ties: 0, total: 3, validCount: 3, firstDate: '2026-01-01', lastDate: '2026-02-01' };
-  H.__setPilots(
-    { firstName: 'A', lastName: 'A', groupName: '', age: null, normKey: 'a a' },
-    { firstName: 'B', lastName: 'B', groupName: '', age: null, normKey: 'b b' });
-  const plain = H.renderH2HHeader(stats, null);
-  assert.ok(!plain.includes('JSTiming'), 'pas de disclaimer sans UEC');
-  global.uecIndex = { generated: '2026-09-09' };
-  try {
-    const withUec = H.renderH2HHeader(stats, null);
-    assert.ok(withUec.includes('JSTiming'), 'disclaimer présent avec UEC');
-  } finally { delete global.uecIndex; }
-});
-
-=======
->>>>>>> 371f5b4 (Retire l'info contextuelle UEC (le footer suffit))
 test('pied de page : Sqorz et JSTiming (données UEC utilisées ici)', () => {
   assert.ok(html.includes('>Sqorz</a> et <a href="https://www.jstiming.nl"'), 'double attribution');
 });
