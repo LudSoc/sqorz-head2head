@@ -1412,6 +1412,28 @@
 if (!window.SqorzCommon) throw new Error('[h2h] common.js introuvable — recharge la page.');
 // Socle partagé (common.js) : utils, expansion d'index, chargeur à cache, dates.
 const { norm, escape, humanError, expandIndex, loadIndexCached, formatDataDates, isNotTimedPhase, num } = window.SqorzCommon;
+// --- Noms complets des clubs (clubs.json, cf. club_stats/tools/clubs/README.md) ---
+// Normalisation compatible club_stats (conserve '-' et la ponctuation : JOUE-T ≠ JOUE T).
+const normClubCode = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+let clubFullNames = new Map();
+async function loadClubNames() {
+  try {
+    const r = await fetch('clubs.json', { cache: 'no-cache' });
+    if (!r.ok) return;
+    const j = await r.json();
+    const m = (j && j.mapping) || j || {};
+    for (const [k, v] of Object.entries(m)) {
+      if (k === '_meta' || !v || !v.name) continue;
+      clubFullNames.set(normClubCode(k), v.name);
+    }
+  } catch { /* repli : codes seuls */ }
+}
+// « BMX BESANCON (BESANC) » — repli sur le code seul si inconnu.
+function clubDisplayName(raw) {
+  const code = (raw || '').trim();
+  const full = clubFullNames.get(normClubCode(code));
+  return full ? `${full} (${code})` : code;
+}
 
 const INDEX_SOURCES = [
   'https://pub-7af06f138c97425f8062b881846803cb.r2.dev/pilots-index.json',
@@ -1603,6 +1625,7 @@ async function loadIndex() {
   try {
     // Index FR : requis — l'UI devient utilisable dès qu'il est prêt.
     pilotsIndex = await loadIndexCached(pilotsCfg());
+    await loadClubNames();
     finishPrimaryLoad();
     // UEC : arrière-plan — recherche et suggestions l'intègrent à son arrivée.
     loadUecInBackground();
@@ -1667,7 +1690,7 @@ function setupAutocomplete(input, dropdown, onSelect, getExcludeKey) {
     dropdown.innerHTML = items.map((p, i) =>
       `<div class="ac-item" data-idx="${i}" tabindex="-1">
         <span class="ac-name">${escape(p.firstName + ' ' + p.lastName)}${p.age != null ? `<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px">${p.age} ans</span>` : ''}</span>
-        ${p.groupName ? `<span class="ac-meta">${escape(p.groupName)}</span>` : ''}
+        ${p.groupName ? `<span class="ac-meta">${escape(clubDisplayName(p.groupName))}</span>` : ''}
       </div>`
     ).join('');
     dropdown.classList.add('open');
@@ -1722,7 +1745,7 @@ function setupAutocomplete(input, dropdown, onSelect, getExcludeKey) {
 // ── 3.3 Badge pilote sélectionné ─────────────────
 function renderBadge(pilot) {
   const fullName = escape(pilot.firstName + ' ' + pilot.lastName);
-  const meta = [pilot.groupName, pilot.age != null ? `${pilot.age} ans` : null].filter(Boolean).map(escape).join(' · ');
+  const meta = [clubDisplayName(pilot.groupName), pilot.age != null ? `${pilot.age} ans` : null].filter(Boolean).map(escape).join(' · ');
   return `<div class="pilot-selected-badge">
     <div class="psb-name">${fullName}</div>
     ${meta ? `<span class="psb-meta">${meta}</span>` : ''}
@@ -1860,7 +1883,7 @@ function renderSuggestions(opponents) {
   }
   suggestionsList.innerHTML = opponents.map(opp => {
     const name = escape(opp.firstName + ' ' + opp.lastName);
-    const meta = [opp.groupName, opp.age != null ? `${opp.age} ans` : null].filter(Boolean).map(escape).join(' · ');
+    const meta = [clubDisplayName(opp.groupName), opp.age != null ? `${opp.age} ans` : null].filter(Boolean).map(escape).join(' · ');
     const score = `${opp.winsA} – ${opp.winsB}`;
     return `<div class="suggestion-item" role="button" tabindex="0" data-norm-key="${escape(opp.normKey)}">
       <div style="flex:1;min-width:0">
@@ -2009,8 +2032,8 @@ function renderH2HHeader(stats, viewScore) {
   const bLeads = winsB > winsA;
   const nameA = escape(pilotA.firstName + ' ' + pilotA.lastName);
   const nameB = escape(pilotB.firstName + ' ' + pilotB.lastName);
-  const metaA = [pilotA.groupName, pilotA.age != null ? `${pilotA.age} ans` : null].filter(Boolean).map(escape).join(' · ');
-  const metaB = [pilotB.groupName, pilotB.age != null ? `${pilotB.age} ans` : null].filter(Boolean).map(escape).join(' · ');
+  const metaA = [clubDisplayName(pilotA.groupName), pilotA.age != null ? `${pilotA.age} ans` : null].filter(Boolean).map(escape).join(' · ');
+  const metaB = [clubDisplayName(pilotB.groupName), pilotB.age != null ? `${pilotB.age} ans` : null].filter(Boolean).map(escape).join(' · ');
   const clubA = metaA ? `<div class="hp-club">${metaA}</div>` : '';
   const clubB = metaB ? `<div class="hp-club">${metaB}</div>` : '';
   const period = stats.firstDate
