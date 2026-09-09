@@ -272,3 +272,7 @@ test('renderH2HHeader : disclaimer UEC si index UEC chargé, absent sinon', () =
     assert.ok(withUec.includes('JSTiming'), 'disclaimer présent avec UEC');
   } finally { delete global.uecIndex; }
 });
+
+test('pied de page : Sqorz et JSTiming (données UEC utilisées ici)', () => {
+  assert.ok(html.includes('>Sqorz</a> et <a href="https://www.jstiming.nl"'), 'double attribution');
+});
