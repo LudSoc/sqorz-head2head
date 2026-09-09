@@ -27,11 +27,13 @@ function stmt(src, start) {
 
 const harnessSrc = [
   'const { isNotTimedPhase, num, escape } = __SC;',
+  'const window = { SqorzCommon: __SC };',
   'let pilotA = null, pilotB = null;',
   "const SQORZ_STATS_BASE = 'https://example.invalid/';",
   block(html, 'const normClubCode = s =>'),
   "for (const [k, v] of Object.entries({ besanc: 'BMX BESANCON' })) clubFullNames.set(k, v);",
   block(html, 'function clubDisplayName(raw) {'),
+  stmt(html, 'const UEC_NOTE ='),
   stmt(html, 'const CHRONO_METRICS ='),
   stmt(html, 'const fmtChrono ='),
   block(html, 'function bestChrono(details, key) {'),
@@ -255,4 +257,18 @@ test('intégration UEC : classes non chronométrées → détails vides (mode é
 
 test('pied de page : Sqorz et JSTiming (données UEC utilisées ici)', () => {
   assert.ok(html.includes('>Sqorz</a> et <a href="https://www.jstiming.nl"'), 'double attribution');
+});
+
+test('renderH2HHeader : disclaimer UEC si index UEC chargé, absent sinon', () => {
+  const stats = { winsA: 2, winsB: 1, ties: 0, total: 3, validCount: 3, firstDate: '2026-01-01', lastDate: '2026-02-01' };
+  H.__setPilots(
+    { firstName: 'A', lastName: 'A', groupName: '', age: null, normKey: 'a a' },
+    { firstName: 'B', lastName: 'B', groupName: '', age: null, normKey: 'b b' });
+  const plain = H.renderH2HHeader(stats, null);
+  assert.ok(!plain.includes('JSTiming'), 'pas de disclaimer sans UEC');
+  global.uecIndex = { generated: '2026-09-09' };
+  try {
+    const withUec = H.renderH2HHeader(stats, null);
+    assert.ok(withUec.includes('JSTiming'), 'disclaimer présent avec UEC');
+  } finally { delete global.uecIndex; }
 });
