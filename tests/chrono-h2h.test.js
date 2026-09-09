@@ -252,3 +252,7 @@ test('intégration UEC : classes non chronométrées → détails vides (mode é
   assert.equal(droppedTimed, 0, 'aucune phase chronométrée perdue');
   assert.ok(kept > 0, `${kept} pilotes avec phases chronométrées`);
 });
+
+test('pied de page : Sqorz et JSTiming (données UEC utilisées ici)', () => {
+  assert.ok(html.includes('>Sqorz</a> et <a href="https://www.jstiming.nl"'), 'double attribution');
+});
